@@ -1,0 +1,15 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/robustness_sweep
+cases: [1, 2, 3]
+seeds: [11, 22, 33]
+scenarios: [nlos1]
+device: auto
+model:
+  paper_indexing_mode: corrected
+  input_length: 500
+  epochs: 30
+  batch_size: 64
+  patience: 7
+  augmentation_probability: 0.25
+particle_filter:
+  num_particles: 400

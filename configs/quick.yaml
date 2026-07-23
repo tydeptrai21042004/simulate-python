@@ -1,0 +1,21 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/quick
+cases:
+- 1
+seeds:
+- 11
+scenarios:
+- los
+- nlos1
+- outlier
+- dropout
+device: auto
+model:
+  paper_indexing_mode: corrected
+  input_length: 256
+  epochs: 8
+  batch_size: 64
+  patience: 4
+  augmentation_probability: 0.2
+particle_filter:
+  num_particles: 180

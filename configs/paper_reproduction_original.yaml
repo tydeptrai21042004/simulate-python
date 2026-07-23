@@ -1,0 +1,25 @@
+# Exact official MATLAB-repository training/deployment protocol.
+# First create this file with scripts/convert_original_matlab_data.py.
+data_path: data/uwb_original_standard.mat
+output_dir: results/paper_reproduction_original
+cases: [1, 2, 3]
+seeds: [2022]
+scenarios: [los]
+device: auto
+model:
+  input_length: 500
+  epochs: 50
+  batch_size: 64
+  paper_batch_fraction: 0.10
+  learning_rate: 0.001
+  weight_decay: 0.0
+  optimizer: adam
+  early_stopping: false
+  restore_best: false
+  paper_indexing_mode: repository
+  paper_validation_mode: sample
+  paper_validation_fraction: 0.15
+  augmentation_probability: 0.0
+particle_filter:
+  # The repository baseline path always uses the original fixed 200 particles.
+  num_particles: 200

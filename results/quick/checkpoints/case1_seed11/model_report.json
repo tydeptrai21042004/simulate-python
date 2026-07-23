@@ -1,0 +1,29 @@
+{
+  "paper_cir": {
+    "name": "Official CIR-CNN",
+    "parameters": 143597,
+    "validation_mae_ns": 0.4615227282047272,
+    "global_scale_ns": 0.3283985189857902,
+    "global_location_ns": -0.07625367055487267,
+    "global_nu": 2.1,
+    "training_seconds": 2.569524235999779
+  },
+  "paper_var": {
+    "name": "Official Variance-CNN",
+    "parameters": 143597,
+    "validation_mae_ns": 0.4789085388183594,
+    "global_scale_ns": 0.27988335730849584,
+    "global_location_ns": 0.03187470309465483,
+    "global_nu": 2.1,
+    "training_seconds": 2.299647197000013
+  },
+  "proposed": {
+    "name": "U-FusePF (full)",
+    "parameters": 32950,
+    "validation_mae_ns": 0.6512637734413147,
+    "global_scale_ns": 0.3776894509792328,
+    "global_location_ns": 0.11594236426444685,
+    "global_nu": 2.1,
+    "training_seconds": 7.520845833000294
+  }
+}

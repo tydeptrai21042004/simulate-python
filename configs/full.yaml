@@ -1,0 +1,18 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/full
+cases: [1, 2, 3]
+seeds: [11, 22, 33, 44, 55]
+scenarios: [los, nlos1, nlos2, outlier, dropout]
+device: auto
+correlated_false_peak_probability: 0.5
+model:
+  paper_indexing_mode: corrected
+  input_length: 500
+  epochs: 40
+  batch_size: 64
+  learning_rate: 0.001
+  patience: 8
+  augmentation_probability: 0.25
+particle_filter:
+  num_particles: 500
+  outlier_prior: 0.05

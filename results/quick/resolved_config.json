@@ -1,0 +1,58 @@
+{
+  "data_path": "/mnt/data/UWB_Passive_Tracking_Python/data/uwb_demo_input.mat",
+  "output_dir": "/mnt/data/UWB_Passive_Tracking_Python/results/quick",
+  "cases": [
+    1
+  ],
+  "seeds": [
+    11
+  ],
+  "scenarios": [
+    "los",
+    "nlos1",
+    "outlier",
+    "dropout"
+  ],
+  "c_m_per_ns": 0.299792458,
+  "dt_s": 0.2,
+  "device": "auto",
+  "correlated_false_peak_probability": 0.5,
+  "model": {
+    "input_length": 256,
+    "epochs": 8,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "patience": 4,
+    "num_workers": 0,
+    "student_nu": 4.0,
+    "min_scale_fraction": 0.004,
+    "augmentation_probability": 0.2,
+    "paper_batch_fraction": null,
+    "optimizer": "adamw",
+    "early_stopping": true,
+    "restore_best": true,
+    "paper_indexing_mode": "corrected",
+    "paper_validation_mode": "time",
+    "paper_validation_fraction": 0.15
+  },
+  "particle_filter": {
+    "num_particles": 180,
+    "position_noise_m": 0.08,
+    "velocity_noise_mps": 0.2,
+    "resample_fraction": 0.6,
+    "outlier_prior": 0.05,
+    "broad_scale_ns": 7.0,
+    "student_nu": 4.0,
+    "bounds_xy": [
+      [
+        -4.5,
+        3.2
+      ],
+      [
+        -4.4,
+        0.8
+      ]
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+UWB Passive Tracking Python - verification report
+Date: 2026-07-23
+
+1. Python compileall: PASS
+2. PyTest: 10 passed
+3. Editable package installation with --no-build-isolation: PASS
+4. CLI discovery (`uwb-track --help`): PASS
+5. Quick end-to-end run: PASS
+   - case: 1
+   - seed: 11
+   - scenarios: los, nlos1, outlier, dropout
+   - methods: 6
+   - result rows: 24
+6. Determinism check: PASS
+   - all non-runtime numerical metrics exactly reproduced across two complete runs
+7. Revised proposal: PASS
+   - DOCX rendered to 5 pages
+   - all pages visually inspected
+   - PDF independently rendered to 5 pages without clipping or broken tables
+
+Boundary: quick-run results use the bundled synthetic dataset and are not paper-reproduction evidence.
