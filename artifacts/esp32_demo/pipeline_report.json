@@ -1,0 +1,103 @@
+{
+  "case": 1,
+  "seed": 11,
+  "input_length": 176,
+  "teacher": {
+    "enabled": true,
+    "checkpoint_dir": "results/quick/checkpoints/case1_seed11",
+    "teacher_input_length": 256
+  },
+  "supernet": {
+    "arch": {
+      "channels": [
+        12,
+        18,
+        24
+      ],
+      "hidden": 16
+    },
+    "parameters": 3439,
+    "mae_ns": 0.3098151683807373,
+    "nll": -3.1113599141438804
+  },
+  "structured_ticket": {
+    "arch": {
+      "channels": [
+        8,
+        12,
+        12
+      ],
+      "hidden": 16
+    },
+    "parameters": 1571,
+    "mae_ns": 0.3388736844062805,
+    "nll": -3.162834405899048,
+    "outlier_bce": 0.1542983502149582,
+    "selected_channels": {
+      "c1": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        8,
+        9,
+        11
+      ],
+      "c2": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16
+      ],
+      "c3": [
+        0,
+        1,
+        3,
+        4,
+        8,
+        9,
+        10,
+        11,
+        14,
+        16,
+        18,
+        23
+      ]
+    }
+  },
+  "random_compact_control": {
+    "parameters": 1571,
+    "mae_ns": 0.24661009013652802,
+    "nll": -3.3141589164733887,
+    "outlier_bce": 0.028209817906220753
+  },
+  "selected_for_deployment": "random_compact_control",
+  "selected_validation_mae_ns": 0.24661009013652802,
+  "export": {
+    "checkpoint": "/mnt/data/simulate-python-esp32/results/esp32s3/checkpoints/best_student.pt",
+    "parameters": 1571,
+    "weight_blob_bytes": 1692,
+    "header_bytes": 14011,
+    "float_vs_raw_int8_raw_mae": 0.05365860462188721,
+    "float_vs_raw_int8_raw_max_abs": 0.14486169815063477,
+    "onnx": null,
+    "espdl": null,
+    "float_vs_raw_int8_mean_delay_mae_ns": 0.09149257838726044,
+    "float_vs_raw_int8_scale_mae_ns": 0.008608885109424591,
+    "float_vs_raw_int8_outlier_mae": 0.000908981601241976,
+    "runtime_constants": {
+      "runtime_constants_header": "/mnt/data/simulate-python-esp32/results/esp32s3/export/uwb_runtime_constants.h",
+      "background_blob": "/mnt/data/simulate-python-esp32/results/esp32s3/export/uwb_background_u8.bin",
+      "background_blob_bytes": 2112
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "checkpoint": "/mnt/data/simulate-python-esp32/results/esp32s3/checkpoints/best_student.pt",
+  "parameters": 1571,
+  "weight_blob_bytes": 1692,
+  "header_bytes": 14011,
+  "float_vs_raw_int8_raw_mae": 0.05365860462188721,
+  "float_vs_raw_int8_raw_max_abs": 0.14486169815063477,
+  "float_vs_raw_int8_mean_delay_mae_ns": 0.09149257838726044,
+  "float_vs_raw_int8_scale_mae_ns": 0.008608885109424591,
+  "float_vs_raw_int8_outlier_mae": 0.000908981601241976,
+  "onnx": null,
+  "espdl": null
+}

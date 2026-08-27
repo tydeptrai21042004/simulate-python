@@ -1,0 +1,25 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/robustness_extended
+cases: [1, 2, 3]
+seeds: [11, 22, 33]
+scenarios:
+  - los
+  - nlos1
+  - nlos2
+  - outlier
+  - dropout
+  - burst_nlos
+  - burst_dropout
+  - mixed
+device: auto
+correlated_false_peak_probability: 0.5
+model:
+  paper_indexing_mode: corrected
+  input_length: 176
+  epochs: 30
+  batch_size: 64
+  patience: 7
+  augmentation_probability: 0.30
+particle_filter:
+  num_particles: 180
+  numeric_dtype: float32

@@ -1,0 +1,94 @@
+{
+  "case": 1,
+  "seed": 11,
+  "input_length": 176,
+  "teacher": {
+    "enabled": false
+  },
+  "supernet": {
+    "arch": {
+      "channels": [
+        10,
+        14,
+        16
+      ],
+      "hidden": 12
+    },
+    "parameters": 2115,
+    "mae_ns": 2.7734339237213135,
+    "nll": -0.767971138159434
+  },
+  "structured_ticket": {
+    "arch": {
+      "channels": [
+        6,
+        8,
+        10
+      ],
+      "hidden": 12
+    },
+    "parameters": 951,
+    "mae_ns": 5.347196102142334,
+    "nll": 0.21946839491526285,
+    "outlier_bce": 0.7216713627179464,
+    "selected_channels": {
+      "c1": [
+        0,
+        1,
+        4,
+        6,
+        7,
+        8
+      ],
+      "c2": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        11
+      ],
+      "c3": [
+        0,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13
+      ]
+    }
+  },
+  "random_compact_control": {
+    "parameters": 951,
+    "mae_ns": 3.279438018798828,
+    "nll": -0.7053850094477335,
+    "outlier_bce": 0.5972450772921244
+  },
+  "selected_for_deployment": "random_compact_control",
+  "selected_validation_mae_ns": 3.279438018798828,
+  "export": {
+    "checkpoint": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/checkpoints/best_student.pt",
+    "parameters": 951,
+    "weight_blob_bytes": 1044,
+    "weight_blob_sha256": "c71eca367927d3188991e5e9c20579773e9b50116379ae9e840699eaa4f5eb81",
+    "header_bytes": 11618,
+    "float_vs_raw_int8_raw_mae": 0.016998961567878723,
+    "float_vs_raw_int8_raw_max_abs": 0.04206991195678711,
+    "float_vs_raw_int8_mean_delay_mae_ns": 0.05126607418060303,
+    "float_vs_raw_int8_scale_mae_ns": 0.06347014009952545,
+    "float_vs_raw_int8_outlier_mae": 0.003375306725502014,
+    "onnx": null,
+    "espdl": null,
+    "runtime_constants": {
+      "runtime_constants_header": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/export/uwb_runtime_constants.h",
+      "background_blob": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/export/uwb_background_u8.bin",
+      "background_blob_bytes": 2112
+    }
+  }
+}

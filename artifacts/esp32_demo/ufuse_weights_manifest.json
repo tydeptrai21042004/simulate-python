@@ -1,0 +1,116 @@
+{
+  "format": "uwb-esp32-int8-v1",
+  "input_scale": 0.007874015748031496,
+  "delay_max_ns": 35.0,
+  "min_scale_fraction": 0.004,
+  "layers": [
+    {
+      "name": "conv1",
+      "weight_shape": [
+        8,
+        6,
+        7
+      ],
+      "weight_scale": 0.01981392995579036,
+      "input_scale": 0.007874015748031496,
+      "output_scale": 0.049300058620182545,
+      "multiplier": 0.00316460468544791,
+      "stride": 2,
+      "padding": 3,
+      "weight_offset": 0,
+      "weight_bytes": 336,
+      "bias_offset": 336,
+      "bias_bytes": 32
+    },
+    {
+      "name": "conv2",
+      "weight_shape": [
+        12,
+        8,
+        5
+      ],
+      "weight_scale": 0.007524315766462191,
+      "input_scale": 0.049300058620182545,
+      "output_scale": 0.0677771981306902,
+      "multiplier": 0.005473067913608252,
+      "stride": 2,
+      "padding": 2,
+      "weight_offset": 368,
+      "weight_bytes": 480,
+      "bias_offset": 848,
+      "bias_bytes": 48
+    },
+    {
+      "name": "conv3",
+      "weight_shape": [
+        12,
+        12,
+        3
+      ],
+      "weight_scale": 0.010487391254094642,
+      "input_scale": 0.0677771981306902,
+      "output_scale": 0.07187485882616419,
+      "multiplier": 0.0098894941362179,
+      "stride": 2,
+      "padding": 1,
+      "weight_offset": 896,
+      "weight_bytes": 432,
+      "bias_offset": 1328,
+      "bias_bytes": 48
+    },
+    {
+      "name": "fc1",
+      "weight_shape": [
+        16,
+        12
+      ],
+      "weight_scale": 0.008727378732576145,
+      "input_scale": 0.07187485882616419,
+      "output_scale": 0.03778937857920729,
+      "multiplier": 0.01659934981496424,
+      "stride": 1,
+      "padding": 0,
+      "weight_offset": 1376,
+      "weight_bytes": 192,
+      "bias_offset": 1568,
+      "bias_bytes": 64
+    },
+    {
+      "name": "fc2",
+      "weight_shape": [
+        3,
+        16
+      ],
+      "weight_scale": 0.021788007631076602,
+      "input_scale": 0.03778937857920729,
+      "output_scale": 0.07384076456385334,
+      "multiplier": 0.011150416354985326,
+      "stride": 1,
+      "padding": 0,
+      "weight_offset": 1632,
+      "weight_bytes": 48,
+      "bias_offset": 1680,
+      "bias_bytes": 12
+    }
+  ],
+  "total_bytes": 1692,
+  "input_length": 176,
+  "arch": {
+    "channels": [
+      8,
+      12,
+      12
+    ],
+    "hidden": 16
+  },
+  "activation_scales": {
+    "input": 0.007874015748031496,
+    "conv1": 0.049300058620182545,
+    "conv2": 0.0677771981306902,
+    "conv3": 0.07187485882616419,
+    "pool": 0.07187485882616419,
+    "fc1": 0.03778937857920729,
+    "raw": 0.07384076456385334
+  },
+  "target": "esp32s3"
+}

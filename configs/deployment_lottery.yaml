@@ -1,0 +1,22 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/deployment_lottery
+cases: [1]
+seeds: [11]
+scenarios: [los, nlos1, outlier, dropout]
+device: cpu
+model:
+  # Native demo data contains 176 delay bins. Avoid 176 -> 500 interpolation.
+  input_length: 176
+  epochs: 30
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  patience: 8
+  augmentation_probability: 0.25
+  student_nu: 4.0
+  min_scale_fraction: 0.004
+particle_filter:
+  # Conservative deployment default; validate 128 before reducing further.
+  num_particles: 180
+  numeric_dtype: float32
+  outlier_prior: 0.05

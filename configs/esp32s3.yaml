@@ -1,0 +1,41 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/esp32s3
+case: 1
+seed: 11
+input_length: 176
+augmentation_probability: 0.30
+validation_fraction: 0.15
+
+# Optional rich offline teacher. The included quick teacher is usable for a
+# smoke run; for final experiments train a converged teacher first.
+teacher_checkpoint_dir: results/quick/checkpoints/case1_seed11
+use_teacher_distillation: true
+
+supernet:
+  channels: [12, 18, 24]
+  hidden: 16
+
+ticket:
+  channels: [8, 12, 12]
+  hidden: 16
+
+training:
+  epochs_supernet: 30
+  epochs_ticket: 40
+  epochs_control: 40
+  batch_size: 64
+  learning_rate: 0.002
+  weight_decay: 0.0001
+  patience: 10
+  student_nu: 4.0
+  min_scale_fraction: 0.004
+  distill_mean_weight: 1.0
+  distill_scale_weight: 0.25
+  corruption_weight: 0.15
+  device: cpu
+
+export:
+  target: esp32s3
+  calibration_samples: 256
+  onnx: false
+  espdl: false

@@ -1,0 +1,34 @@
+{
+  "format": "uwb-esp32-runtime-constants-v1",
+  "input_length": 176,
+  "num_links": 6,
+  "num_anchors": 4,
+  "background_binary": {
+    "path": "uwb_background_u8.bin",
+    "bytes": 2112,
+    "cir_offset": 0,
+    "cir_bytes": 1056,
+    "variance_offset": 1056,
+    "variance_bytes": 1056,
+    "shape": [
+      6,
+      176
+    ]
+  },
+  "preprocessing": {
+    "dynamic_cir": "abs -> per-link minmax -> uint8[0,255]",
+    "background_cir": "precomputed uint8 in export",
+    "cir_difference": "abs(dynamic_u8-background_u8) -> per-link minmax to uint8",
+    "dynamic_variance": "max(x,0) -> per-link minmax -> uint8[0,255]",
+    "background_variance": "precomputed uint8 in export",
+    "variance_difference": "abs(dynamic_u8-background_u8) -> per-link minmax to uint8",
+    "network_channel_order": [
+      "cir_dynamic",
+      "cir_background",
+      "cir_difference",
+      "var_dynamic",
+      "var_background",
+      "var_difference"
+    ]
+  }
+}

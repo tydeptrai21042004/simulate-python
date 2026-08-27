@@ -1,0 +1,37 @@
+data_path: data/uwb_demo_input.mat
+output_dir: results/esp32s3_smoke
+case: 1
+seed: 11
+input_length: 176
+augmentation_probability: 0.20
+validation_fraction: 0.15
+use_teacher_distillation: false
+
+supernet:
+  channels: [10, 14, 16]
+  hidden: 12
+
+ticket:
+  channels: [6, 8, 10]
+  hidden: 12
+
+training:
+  epochs_supernet: 2
+  epochs_ticket: 2
+  epochs_control: 2
+  batch_size: 64
+  learning_rate: 0.002
+  weight_decay: 0.0001
+  patience: 2
+  student_nu: 4.0
+  min_scale_fraction: 0.004
+  distill_mean_weight: 0.0
+  distill_scale_weight: 0.0
+  corruption_weight: 0.15
+  device: cpu
+
+export:
+  target: esp32s3
+  calibration_samples: 64
+  onnx: false
+  espdl: false
