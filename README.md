@@ -76,7 +76,7 @@ Python 3.10+ is supported. A CUDA GPU is recommended for the full 3-case × 5-se
 pytest
 ```
 
-The final ESP32 edition currently passes **58 tests**.
+The final ESP32 edition currently passes **61 tests**.
 
 ### 2. Quick end-to-end run
 
@@ -114,23 +114,24 @@ uwb-track robustness-sweep --config configs/robustness_sweep.yaml
 
 ## Use the original experimental data
 
-Obtain the files referenced by the official repository:
-
-- `Bg_CIR_VAR.mat`
-- `Dyn_CIR_VAR.mat`
-- `AnchorPos.mat`
-
-Then run:
+The project can now fetch the public sources automatically. The official GitHub repository provides
+`AnchorPos.mat` and `Bg_CIR_VAR.mat`; its README links the separately hosted `Dyn_CIR_VAR.mat`.
+Run:
 
 ```bash
-python scripts/convert_original_matlab_data.py \
-  --background path/to/Bg_CIR_VAR.mat \
-  --dynamic path/to/Dyn_CIR_VAR.mat \
-  --anchors path/to/AnchorPos.mat \
-  --output data/uwb_original_standard.mat
+python scripts/fetch_original_data.py
 ```
 
-Change `data_path` in the YAML configuration to `data/uwb_original_standard.mat`.
+or directly start the official LTH/INT8 pipeline:
+
+```bash
+./RUN_ESP32_OFFICIAL.sh
+```
+
+The converter explicitly matches the official MATLAB schema: `AnchorPos` is reduced from XYZ to
+XY because the official PF uses only XY, `Dyn_var_CIRxx` / `Bg_var_CIRxx` are recognized, and
+complex CIR is converted with magnitude rather than a lossy float cast. Manual conversion remains
+available through `scripts/convert_original_matlab_data.py`.
 
 ## Main outputs
 

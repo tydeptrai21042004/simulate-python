@@ -15,7 +15,8 @@ dependencies = [
   "matplotlib>=3.8",
   "scikit-learn>=1.4",
   "PyYAML>=6.0",
-  "torch>=2.1"
+  "torch>=2.1",
+  "gdown>=5.2"
 ]
 
 [project.optional-dependencies]

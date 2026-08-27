@@ -37,7 +37,7 @@ pip install -e '.[dev]'
 pytest
 ```
 
-Kết quả chuẩn của bản giao hiện tại: **10 tests passed**.
+Kết quả chuẩn của bản giao hiện tại: **61 tests passed**.
 
 ## 4. Chạy nhanh end-to-end
 
@@ -55,25 +55,20 @@ Kết quả được ghi vào `results/quick/`. Đây chỉ là smoke test trên
 
 ## 5. Tái lập mã MATLAB chính thức
 
-### Bước 1 - Chuẩn bị dữ liệu
-
-Cần ba file:
-
-- `Bg_CIR_VAR.mat`;
-- `Dyn_CIR_VAR.mat`;
-- `AnchorPos.mat`.
-
-### Bước 2 - Chuyển sang định dạng chuẩn
+### Bước 1 - Tự động tải và chuyển dữ liệu
 
 ```bash
-python scripts/convert_original_matlab_data.py \
-  --background path/to/Bg_CIR_VAR.mat \
-  --dynamic path/to/Dyn_CIR_VAR.mat \
-  --anchors path/to/AnchorPos.mat \
-  --output data/uwb_original_standard.mat
+python scripts/fetch_original_data.py
 ```
 
-### Bước 3 - Chạy protocol repository-parity
+Script tự tải repository `CLongLi/UWB-Radar-Pedestrian-Tracking` từ GitHub, tải
+`Dyn_CIR_VAR.mat` từ Google Drive do chính README của repository gốc cung cấp, sau đó tạo
+`data/uwb_original_standard.mat`. Bộ chuyển đổi xử lý đúng `AnchorPos` 4x3 -> XY, tên biến
+`Dyn_var_CIRxx`/`Bg_var_CIRxx` và dùng `abs(CIR phức)` giống MATLAB gốc.
+
+Nếu đã có ba file MATLAB, vẫn có thể chạy `scripts/convert_original_matlab_data.py` thủ công.
+
+### Bước 2 - Chạy protocol repository-parity
 
 ```bash
 uwb-track reproduce-paper --config configs/paper_reproduction_original.yaml
@@ -119,3 +114,26 @@ Mỗi thư mục experiment có:
 - Kết quả synthetic không được dùng để tuyên bố độ chính xác trên DWM1000 thực.
 - Chỉ kết luận tái lập số liệu bài báo sau khi chạy dữ liệu gốc và kiểm tra intermediate arrays.
 - Khi so sánh phương pháp đề xuất, dùng protocol timestamp-validation và corrected indexing trong `full.yaml` để giảm leakage và sửa lệch một bin của deployment formula gốc.
+
+## 10. Huấn luyện + Lottery Ticket + export INT8 cho ESP32
+
+Dữ liệu demo:
+
+```bash
+./RUN_ESP32_TRAIN.sh
+```
+
+Dữ liệu chính thức, tự tải nếu chưa có:
+
+```bash
+./RUN_ESP32_OFFICIAL.sh
+```
+
+Pipeline ESP32 hiện **bắt buộc export model từ structured Lottery Ticket Hypothesis**. Supernet
+được train trước, các channel/neuron quan trọng được chọn từ supernet đã train nhưng trọng số sống
+sót được rewind về initialization. Nhiều kiến trúc compact được thử từ nhỏ đến lớn. Model đầu tiên
+đạt giới hạn suy giảm ToF MAE trong `lth_search` sẽ được export. Random compact model chỉ là control
+để báo cáo khoa học và không được phép thay thế LTH checkpoint.
+
+Nếu không ticket nào đạt accuracy guard trong cấu hình official, pipeline dừng trước export thay vì
+xuất một model nhẹ nhưng chất lượng thấp.

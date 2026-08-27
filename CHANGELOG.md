@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-27 — Official auto-data + accuracy-guarded structured LTH export
+
+- Added `scripts/fetch_original_data.py` and `uwb_tracking.official_data` to automatically download the official GitHub repository and the author-linked `Dyn_CIR_VAR.mat`, then build `data/uwb_original_standard.mat`.
+- Corrected official MATLAB conversion: 4x3 XYZ anchors are reduced to XY exactly as the official PF does; `Dyn_var_CIRxx` / `Bg_var_CIRxx` are recognized; complex CIR uses magnitude instead of a lossy float cast.
+- Reworked ESP32 structured Lottery Ticket selection to prune both Conv channels and FC hidden neurons with dependency-aware hierarchical scoring, then rewind survivors to their original initialization.
+- Added progressive smallest-first LTH candidate search with explicit relative + absolute ToF-MAE guards plus NLL/outlier-BCE quality guards. `best_student.pt` is now always a structured rewound LTH ticket; the random compact model is a control only and can never replace the deployment checkpoint.
+- Added representative clean/corrupted calibration sampling before INT8 export and changed checkpoint selection to MAE-first to prevent negative NLL from hiding worse ToF accuracy.
+- Added `configs/esp32s3_official.yaml`, `RUN_ESP32_OFFICIAL.sh`, and `RUN_ESP32_OFFICIAL.bat` for one-command official-data training/export.
+- Expanded the suite to **61 passing tests**, including official-schema conversion of complex CIR/XYZ anchors and hidden-neuron LTH pruning.
+
+
 ## 1.0.0
 
 - Replaced MATLAB pipeline with installable Python/PyTorch package.

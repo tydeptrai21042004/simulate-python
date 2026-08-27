@@ -221,8 +221,10 @@ def train_student(
         val_mae, val_nll, val_bce = evaluate_student(
             model, val_x, val_y, val_corruption, delay_max_ns, cfg
         )
-        # Preserve uncertainty quality, but prioritize ToF accuracy for embedded deployment.
-        score = val_mae + 0.25 * val_nll + 0.10 * val_bce
+        # Checkpoint selection is MAE-first because deployment quality is dominated by ToF accuracy.
+        # NLL/BCE remain reported diagnostics and training losses, but negative NLL values must not
+        # accidentally make a worse-ToF checkpoint look better.
+        score = val_mae
         epochs_ran = epoch + 1
         if score < best_loss - 1e-5:
             best_loss = score
@@ -276,6 +278,14 @@ def save_student_checkpoint(
     }
     torch.save(payload, path)
 
+
+
+def is_structured_lth_checkpoint(meta: dict) -> bool:
+    """Return True only for checkpoints produced by structured rewound ticket training."""
+
+    extra = meta.get("extra", {}) or {}
+    role = str(extra.get("role", "")).lower()
+    return "structured" in role and ("ticket" in role or "lth" in role)
 
 def load_student_checkpoint(path: str | Path) -> tuple[ESP32StudentNet, dict]:
     payload = torch.load(path, map_location="cpu", weights_only=False)

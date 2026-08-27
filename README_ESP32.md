@@ -16,7 +16,12 @@ The ESP32 student consumes the same six normalized features already used by the 
 5. variance background
 6. variance difference
 
-Default physical network:
+The deployment architecture is selected automatically by a progressive structured Lottery-Ticket search.
+Candidate graphs range from a very small `6/8/8 + FC10` model to a conservative
+`12/18/24 + FC20` model. The search always tries the smallest physical graph first and stops
+when validation ToF MAE stays inside the configured accuracy budget.
+
+A common middle candidate is:
 
 ```text
 [6 x 176]
@@ -30,22 +35,23 @@ Default physical network:
 
 The three raw outputs are decoded as ToF mean, Student-t scale and outlier probability. For the
 custom C/C++ path, the exporter generates lookup tables so the MCU does not need sigmoid or
-softplus at runtime.
-
-The default compact model has **1,571 trainable parameters**. After BN folding and simple
-symmetric INT8 quantization, the included demo export contains a raw weight/bias blob of about
-**1.7 KB**.
+softplus at runtime. The `8/12/12 + FC16` candidate has **1,571 parameters** and historically
+exports to about **1.7 KB** of raw INT8 weights/biases; more aggressive candidates can be smaller.
 
 ## Why the Lottery-Ticket step is structured
 
-The training supernet is wider (`12,18,24`). After training, channels are ranked by magnitude.
-The selected channels are copied from the **initial** supernet state and retrained as a physical
-`8,12,12` network. This keeps the rewind idea of the Lottery Ticket Hypothesis but removes whole
-channels instead of storing zero-masked dense tensors.
+The training supernet is wider (`12,18,24` with a wider FC hidden layer). After training, the code
+ranks channels **hierarchically**: conv2 is scored only through retained conv1 inputs, conv3 only
+through retained conv2 inputs, and FC hidden neurons are ranked from both their incoming and
+outgoing magnitudes. The selected channels/neurons are then copied from the **initial** supernet
+state and retrained. This preserves the rewind principle of the Lottery Ticket Hypothesis while
+physically deleting channels and neurons instead of exporting sparse zero masks.
 
-The pipeline also trains a fresh random network with the same compact architecture. The final
-checkpoint is whichever validates better. This prevents claiming a Lottery-Ticket advantage when
-simple compact training is actually better.
+Export is now **LTH-only**. A fresh random network with the exact selected architecture is still
+trained as a scientific control, but it can never replace `best_student.pt`. To protect accuracy,
+the search exports only a structured rewound ticket that meets the configured MAE/NLL/outlier-quality guard
+(`max_relative_mae_loss` and `max_absolute_mae_loss_ns`). If no ticket satisfies a strict guard,
+no misleading "best" deployment export is produced.
 
 ## Optional rich teacher
 
@@ -91,24 +97,38 @@ pip install -e .
 
 ## One-command training + raw INT8 export
 
+Synthetic/demo path:
+
 ```bash
 python scripts/train_esp32_pipeline.py --config configs/esp32s3.yaml
 ```
 
-This performs:
+Official-data path (automatic download + conversion on first run):
+
+```bash
+./RUN_ESP32_OFFICIAL.sh
+# or
+python scripts/train_esp32_pipeline.py --config configs/esp32s3_official.yaml --auto-data
+```
+
+The official path downloads `CLongLi/UWB-Radar-Pedestrian-Tracking` from GitHub and obtains
+`Dyn_CIR_VAR.mat` from the author-provided Google Drive link referenced by that repository. The
+converter handles the official `4x3` anchors, `Dyn_var_CIRxx` / `Bg_var_CIRxx` variables, and uses
+`abs(complex CIR)` as the MATLAB scripts do.
+
+The training/export sequence is:
 
 ```text
-load data
+load or auto-fetch official data
  -> build clean + corrupted training set
  -> optional rich-teacher targets
- -> train wider channel-discovery supernet
- -> select structured ticket
- -> rewind selected channels
- -> retrain compact ticket
- -> train same-size random compact control
- -> choose the better compact model
+ -> train wider discovery supernet
+ -> try smallest structured rewound LTH ticket
+ -> enlarge only if the validation-MAE guard is not met
+ -> train same-architecture random control for evidence only
+ -> copy the selected LTH checkpoint to best_student.pt
+ -> balanced clean/corrupted INT8 calibration
  -> fold BatchNorm
- -> calibrate INT8 activations/weights
  -> export C header + raw binary + golden vectors
 ```
 
@@ -119,9 +139,9 @@ results/esp32s3/
 ├── pipeline_report.json
 ├── checkpoints/
 │   ├── supernet.pt
-│   ├── structured_ticket.pt
-│   ├── random_compact_control.pt
-│   └── best_student.pt
+│   ├── lth_ticket_00_c..._h....pt   # one or more progressive candidates
+│   ├── random_compact_control.pt   # evidence only, never deployed
+│   └── best_student.pt             # always the selected structured LTH ticket
 └── export/
     ├── ufuse_weights_int8.h
     ├── ufuse_weights_int8.bin
@@ -218,19 +238,13 @@ validate whichever firmware path you choose.
 Before trusting the firmware, run exactly these samples on the ESP32 and compare all three output
 values. This catches tensor-order, padding, stride, quantization and rounding mistakes.
 
-## Current included full-run result
+## Current included smoke verification
 
-On the included demo split (case 1, seed 11), the full default Python run produced:
-
-- supernet: 3,439 params, validation ToF MAE about 0.310 ns
-- structured ticket: 1,571 params, validation ToF MAE about 0.339 ns
-- random compact control: 1,571 params, validation ToF MAE about 0.247 ns
-- deployment selector: random compact control for this seed
-- raw INT8 weight/bias blob: 1,692 bytes
-- float-vs-custom-INT8 decoded mean-delay difference on golden samples: about 0.09 ns
-
-This result is intentionally reported rather than forcing the Lottery-Ticket model to win. The
-structured-ticket hypothesis should be evaluated over multiple cases/seeds.
+The regenerated two-epoch smoke run is only a pipeline test, not a scientific accuracy result. It
+verified that the new exporter selects a **structured rewound LTH ticket** and cannot substitute
+the random control. In that smoke run the selected graph had **827 parameters** and the raw INT8
+weight/bias blob was **904 bytes**. Final claims must use the official data and the stricter
+`configs/esp32s3_official.yaml` quality guard.
 
 ## Tests
 
@@ -238,18 +252,19 @@ structured-ticket hypothesis should be evaluated over multiple cases/seeds.
 pytest -q
 ```
 
-The project currently has **58 passing tests**. They cover the original research pipeline plus:
+The project currently has **61 passing tests**. They cover the original research pipeline plus:
 
 - data/preprocessing edge cases and normalization bounds;
 - native and resampled streaming preprocessing;
 - all original corruption scenarios plus `burst_nlos`, `burst_dropout`, and `mixed`;
 - PF float32/float64 stability, determinism, tiny scales, and learned outlier probabilities;
-- ESP32 architecture validation and structured-ticket failure cases;
+- ESP32 architecture validation, hidden-neuron pruning and structured-ticket failure cases;
 - BatchNorm folding equivalence;
 - INT8 calibration validation, saturation behavior, deterministic binary export and SHA-256 integrity;
 - generated LUT/header contents;
 - checkpoint save/load round-trip;
-- a short train -> checkpoint -> raw INT8 export integration test.
+- official MATLAB-schema conversion including complex CIR and 4x3 anchors;
+- LTH checkpoint-policy enforcement and a short train -> checkpoint -> raw INT8 export integration test.
 
 Run the fast embedded smoke pipeline with:
 

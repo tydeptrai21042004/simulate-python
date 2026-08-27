@@ -11,6 +11,7 @@ from uwb_tracking.esp32.model import ESP32Architecture, ESP32StudentNet, build_r
 from uwb_tracking.esp32.training import (
     ESP32TrainingConfig,
     load_student_checkpoint,
+    is_structured_lth_checkpoint,
     save_student_checkpoint,
     train_student,
 )
@@ -24,13 +25,19 @@ def _tiny_arrays(seed=1):
     return x[:18], y[:18], c[:18], x[18:], y[18:], c[18:]
 
 
-def test_ticket_rejects_wider_target_and_hidden_mismatch():
+def test_ticket_supports_hidden_pruning_and_rejects_wider_targets():
     supernet = ESP32StudentNet(ESP32Architecture((6, 8, 10), 12))
-    initial = supernet.state_dict()
-    with pytest.raises(ValueError, match="hidden"):
-        build_rewound_structured_ticket(supernet, initial, ESP32Architecture((4, 6, 8), 8))
+    initial = {k: v.clone() for k, v in supernet.state_dict().items()}
+    ticket, selection = build_rewound_structured_ticket(
+        supernet, initial, ESP32Architecture((4, 6, 8), 8)
+    )
+    assert ticket.fc1.out_features == 8
+    assert selection.hidden.numel() == 8
+    assert torch.allclose(ticket.fc1.bias, initial["fc1.bias"][selection.hidden])
     with pytest.raises(ValueError, match="must not exceed"):
         build_rewound_structured_ticket(supernet, initial, ESP32Architecture((7, 8, 10), 12))
+    with pytest.raises(ValueError, match="hidden width"):
+        build_rewound_structured_ticket(supernet, initial, ESP32Architecture((6, 8, 10), 13))
 
 
 def test_train_student_rejects_inconsistent_sample_counts():
@@ -84,3 +91,10 @@ def test_training_with_teacher_targets_runs():
     )
     assert np.isfinite(result.validation_mae_ns)
     assert result.epochs_ran == 1
+
+
+def test_lth_checkpoint_metadata_policy():
+    assert is_structured_lth_checkpoint({"extra": {"role": "structured-rewound-lth-ticket"}})
+    assert is_structured_lth_checkpoint({"extra": {"role": "structured-rewound-ticket"}})
+    assert not is_structured_lth_checkpoint({"extra": {"role": "random-compact-control-only"}})
+    assert not is_structured_lth_checkpoint({})

@@ -3,7 +3,7 @@ Date: 2026-08-27
 
 Automated suite:
   Command: pytest -q
-  Result: 58 passed
+  Result: 61 passed
   Warnings: 0
 
 Static compilation:
@@ -13,10 +13,17 @@ Static compilation:
 End-to-end ESP32 smoke pipeline:
   Command: PYTHONPATH=src python scripts/train_esp32_pipeline.py --config configs/esp32s3_smoke.yaml --no-teacher
   Result: PASS
-  Selected compact model: random_compact_control (this short smoke run only)
-  Parameters: 951
-  Raw INT8 weight blob: 1,044 bytes
-  Float-vs-custom-INT8 decoded mean-delay MAE: ~0.0513 ns
+  Selected deployment type: structured_rewound_lth_ticket
+  Selected architecture: Conv channels [6, 8, 8], hidden 8
+  Parameters: 827
+  Raw INT8 weight/bias blob: 904 bytes
+  Float-vs-custom-INT8 decoded mean-delay MAE: ~0.0925 ns
   Runtime background blob: 2,112 bytes
+  Random compact control: trained and reported, never exported
 
-The smoke result validates integration/export only. It is not a final scientific accuracy result.
+Official-data converter coverage:
+  - official 4x3 XYZ AnchorPos -> XY: PASS
+  - Dyn_var_CIRxx / Bg_var_CIRxx names: PASS
+  - complex CIR -> abs(CIR) rather than float-cast: PASS
+
+The smoke result validates integration/export only. Final accuracy claims require the official dataset and the strict MAE guard in configs/esp32s3_official.yaml.

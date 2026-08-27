@@ -82,15 +82,17 @@ class ESP32StudentNet(nn.Module):
 
 @dataclass(frozen=True)
 class ESP32TicketSelection:
+    """Physical channel/neuron identities retained by a structured ticket."""
+
     c1: torch.Tensor
     c2: torch.Tensor
     c3: torch.Tensor
+    hidden: torch.Tensor
 
 
-def _top_channels(weight: torch.Tensor, count: int) -> torch.Tensor:
-    if count > weight.shape[0]:
-        raise ValueError("ticket width cannot exceed supernet width")
-    score = weight.detach().abs().flatten(1).sum(dim=1)
+def _top_channels_from_score(score: torch.Tensor, count: int) -> torch.Tensor:
+    if count > score.numel():
+        raise ValueError("ticket width cannot exceed source width")
     return torch.topk(score, k=count, largest=True, sorted=True).indices.sort().values
 
 
@@ -98,12 +100,36 @@ def select_structured_ticket(
     trained_supernet: ESP32StudentNet,
     target_arch: ESP32Architecture,
 ) -> ESP32TicketSelection:
-    c1, c2, c3 = target_arch.channels
-    return ESP32TicketSelection(
-        c1=_top_channels(trained_supernet.conv1.weight, c1),
-        c2=_top_channels(trained_supernet.conv2.weight, c2),
-        c3=_top_channels(trained_supernet.conv3.weight, c3),
-    )
+    """Select a dependency-aware structured LTH ticket.
+
+    Ranking is hierarchical: conv2 is scored only through retained conv1 inputs,
+    conv3 only through retained conv2 inputs, and hidden FC neurons use both their
+    incoming magnitude and their contribution to all three output heads. This is
+    more faithful to the *physical* compact graph than ranking every layer in
+    isolation against channels that will later be removed.
+    """
+
+    c1_count, c2_count, c3_count = target_arch.channels
+    source_arch = trained_supernet.arch
+    if any(small > large for small, large in zip(target_arch.channels, source_arch.channels)):
+        raise ValueError("target channels must not exceed supernet channels")
+    if target_arch.hidden > source_arch.hidden:
+        raise ValueError("target hidden width must not exceed supernet hidden width")
+
+    w1 = trained_supernet.conv1.weight.detach().abs()
+    c1 = _top_channels_from_score(w1.flatten(1).sum(dim=1), c1_count)
+
+    w2 = trained_supernet.conv2.weight.detach().abs()[:, c1, :]
+    c2 = _top_channels_from_score(w2.flatten(1).sum(dim=1), c2_count)
+
+    w3 = trained_supernet.conv3.weight.detach().abs()[:, c2, :]
+    c3 = _top_channels_from_score(w3.flatten(1).sum(dim=1), c3_count)
+
+    fc1 = trained_supernet.fc1.weight.detach().abs()[:, c3]
+    fc2 = trained_supernet.fc2.weight.detach().abs()
+    hidden_score = fc1.sum(dim=1) + fc2.sum(dim=0)
+    hidden = _top_channels_from_score(hidden_score, target_arch.hidden)
+    return ESP32TicketSelection(c1=c1, c2=c2, c3=c3, hidden=hidden)
 
 
 def _copy_bn(
@@ -127,16 +153,17 @@ def build_rewound_structured_ticket(
 ) -> tuple[ESP32StudentNet, ESP32TicketSelection]:
     """Create a physically smaller winning-ticket candidate and rewind it.
 
-    Channels are ranked using the *trained* supernet, while surviving values are
-    copied from the original initialization. This preserves the lottery-ticket
-    rewind principle while producing a dense compact model suitable for ESP32.
+    Channel/neuron identities are discovered from the *trained* supernet, while
+    the retained weights are copied from the original initialization. Whole
+    channels and FC neurons are removed, so the exported dense INT8 model becomes
+    genuinely smaller; no sparse mask needs to be stored by the MCU.
     """
 
     source_arch = trained_supernet.arch
-    if target_arch.hidden != source_arch.hidden:
-        raise ValueError("target hidden width must match the supernet hidden width")
     if any(small > large for small, large in zip(target_arch.channels, source_arch.channels)):
         raise ValueError("target channels must not exceed supernet channels")
+    if target_arch.hidden > source_arch.hidden:
+        raise ValueError("target hidden width must not exceed supernet hidden width")
 
     sel = select_structured_ticket(trained_supernet, target_arch)
     ticket = ESP32StudentNet(target_arch, trained_supernet.min_scale_fraction)
@@ -150,8 +177,8 @@ def build_rewound_structured_ticket(
     _copy_bn(ticket.bn3, initial_supernet_state, "bn3", sel.c3)
 
     with torch.no_grad():
-        ticket.fc1.weight.copy_(initial_supernet_state["fc1.weight"][:, sel.c3])
-        ticket.fc1.bias.copy_(initial_supernet_state["fc1.bias"])
-        ticket.fc2.weight.copy_(initial_supernet_state["fc2.weight"])
+        ticket.fc1.weight.copy_(initial_supernet_state["fc1.weight"][sel.hidden][:, sel.c3])
+        ticket.fc1.bias.copy_(initial_supernet_state["fc1.bias"][sel.hidden])
+        ticket.fc2.weight.copy_(initial_supernet_state["fc2.weight"][:, sel.hidden])
         ticket.fc2.bias.copy_(initial_supernet_state["fc2.bias"])
     return ticket, sel
