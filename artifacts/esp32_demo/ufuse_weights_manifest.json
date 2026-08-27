@@ -7,110 +7,111 @@
     {
       "name": "conv1",
       "weight_shape": [
-        8,
+        6,
         6,
         7
       ],
-      "weight_scale": 0.01981392995579036,
+      "weight_scale": 0.03554772579763818,
       "input_scale": 0.007874015748031496,
-      "output_scale": 0.049300058620182545,
-      "multiplier": 0.00316460468544791,
+      "output_scale": 0.05891906182597002,
+      "multiplier": 0.004750641711914263,
       "stride": 2,
       "padding": 3,
       "weight_offset": 0,
-      "weight_bytes": 336,
-      "bias_offset": 336,
-      "bias_bytes": 32
+      "weight_bytes": 252,
+      "bias_offset": 252,
+      "bias_bytes": 24
     },
     {
       "name": "conv2",
       "weight_shape": [
-        12,
         8,
+        6,
         5
       ],
-      "weight_scale": 0.007524315766462191,
-      "input_scale": 0.049300058620182545,
-      "output_scale": 0.0677771981306902,
-      "multiplier": 0.005473067913608252,
+      "weight_scale": 0.00874973469831812,
+      "input_scale": 0.05891906182597002,
+      "output_scale": 0.05697321704053503,
+      "multiplier": 0.009048570300747743,
       "stride": 2,
       "padding": 2,
-      "weight_offset": 368,
-      "weight_bytes": 480,
-      "bias_offset": 848,
-      "bias_bytes": 48
+      "weight_offset": 276,
+      "weight_bytes": 240,
+      "bias_offset": 516,
+      "bias_bytes": 32
     },
     {
       "name": "conv3",
       "weight_shape": [
-        12,
-        12,
+        8,
+        8,
         3
       ],
-      "weight_scale": 0.010487391254094642,
-      "input_scale": 0.0677771981306902,
-      "output_scale": 0.07187485882616419,
-      "multiplier": 0.0098894941362179,
+      "weight_scale": 0.00996971505833423,
+      "input_scale": 0.05697321704053503,
+      "output_scale": 0.030322195038082093,
+      "multiplier": 0.018732375381709618,
       "stride": 2,
       "padding": 1,
-      "weight_offset": 896,
-      "weight_bytes": 432,
-      "bias_offset": 1328,
-      "bias_bytes": 48
+      "weight_offset": 548,
+      "weight_bytes": 192,
+      "bias_offset": 740,
+      "bias_bytes": 32
     },
     {
       "name": "fc1",
       "weight_shape": [
-        16,
-        12
+        8,
+        8
       ],
-      "weight_scale": 0.008727378732576145,
-      "input_scale": 0.07187485882616419,
-      "output_scale": 0.03778937857920729,
-      "multiplier": 0.01659934981496424,
+      "weight_scale": 0.0033712516150136633,
+      "input_scale": 0.030322195038082093,
+      "output_scale": 0.016850901400949074,
+      "multiplier": 0.006066366810925385,
       "stride": 1,
       "padding": 0,
-      "weight_offset": 1376,
-      "weight_bytes": 192,
-      "bias_offset": 1568,
-      "bias_bytes": 64
+      "weight_offset": 772,
+      "weight_bytes": 64,
+      "bias_offset": 836,
+      "bias_bytes": 32
     },
     {
       "name": "fc2",
       "weight_shape": [
         3,
-        16
+        8
       ],
-      "weight_scale": 0.021788007631076602,
-      "input_scale": 0.03778937857920729,
-      "output_scale": 0.07384076456385334,
-      "multiplier": 0.011150416354985326,
+      "weight_scale": 0.0030197745233070195,
+      "input_scale": 0.016850901400949074,
+      "output_scale": 0.020670474044919954,
+      "multiplier": 0.0024617685416774694,
       "stride": 1,
       "padding": 0,
-      "weight_offset": 1632,
-      "weight_bytes": 48,
-      "bias_offset": 1680,
+      "weight_offset": 868,
+      "weight_bytes": 24,
+      "bias_offset": 892,
       "bias_bytes": 12
     }
   ],
-  "total_bytes": 1692,
+  "total_bytes": 904,
+  "sha256": "e32f69889023c4cccbb3ae1eef70280c5a309fb05d9e989fe121b5fb8b35242e",
   "input_length": 176,
   "arch": {
     "channels": [
+      6,
       8,
-      12,
-      12
+      8
     ],
-    "hidden": 16
+    "hidden": 8
   },
   "activation_scales": {
     "input": 0.007874015748031496,
-    "conv1": 0.049300058620182545,
-    "conv2": 0.0677771981306902,
-    "conv3": 0.07187485882616419,
-    "pool": 0.07187485882616419,
-    "fc1": 0.03778937857920729,
-    "raw": 0.07384076456385334
+    "conv1": 0.05891906182597002,
+    "conv2": 0.05697321704053503,
+    "conv3": 0.030322195038082093,
+    "pool": 0.030322195038082093,
+    "fc1": 0.016850901400949074,
+    "raw": 0.020670474044919954
   },
   "target": "esp32s3"
 }

@@ -1,9 +1,28 @@
 {
+  "status": "ok",
   "case": 1,
   "seed": 11,
   "input_length": 176,
+  "data": {
+    "auto_download": false,
+    "downloaded": false,
+    "path": "/mnt/data/work_sim/simulate-python-main/data/uwb_demo_input.mat"
+  },
   "teacher": {
     "enabled": false
+  },
+  "lth_policy": {
+    "export_is_always_lth": true,
+    "progressive_smallest_first": true,
+    "reference": "uncompressed_supernet_validation_mae",
+    "mae_limit_ns": 3.8955623626708986,
+    "max_relative_mae_loss": 0.6,
+    "max_absolute_mae_loss_ns": 5.0,
+    "nll_limit": 9.113301257292429,
+    "max_nll_increase": 10.0,
+    "outlier_bce_limit": 10.329656819502512,
+    "max_outlier_bce_increase": 10.0,
+    "accuracy_guard_met": true
   },
   "supernet": {
     "arch": {
@@ -12,82 +31,160 @@
         14,
         16
       ],
-      "hidden": 12
+      "hidden": 16
     },
-    "parameters": 2115,
-    "mae_ns": 2.7734339237213135,
-    "nll": -0.767971138159434
+    "parameters": 2195,
+    "mae_ns": 2.4347264766693115,
+    "nll": -0.8866987427075704,
+    "outlier_bce": 0.32965681950251263
   },
-  "structured_ticket": {
+  "ticket_search": [
+    {
+      "candidate_index": 0,
+      "arch": {
+        "channels": [
+          6,
+          8,
+          8
+        ],
+        "hidden": 8
+      },
+      "parameters": 827,
+      "mae_ns": 3.8328285217285156,
+      "nll": -0.05276104683677355,
+      "outlier_bce": 0.4146725535392761,
+      "accuracy_guard_met": true,
+      "checkpoint": "results/esp32s3_smoke/checkpoints/lth_ticket_00_c6-8-8_h8.pt",
+      "selected_channels": {
+        "c1": [
+          1,
+          2,
+          4,
+          6,
+          7,
+          9
+        ],
+        "c2": [
+          0,
+          2,
+          3,
+          6,
+          7,
+          8,
+          9,
+          12
+        ],
+        "c3": [
+          0,
+          2,
+          3,
+          6,
+          7,
+          9,
+          10,
+          12
+        ],
+        "hidden": [
+          1,
+          2,
+          5,
+          9,
+          12,
+          13,
+          14,
+          15
+        ]
+      }
+    }
+  ],
+  "selected_for_deployment": {
+    "type": "structured_rewound_lth_ticket",
     "arch": {
       "channels": [
         6,
         8,
-        10
+        8
       ],
-      "hidden": 12
+      "hidden": 8
     },
-    "parameters": 951,
-    "mae_ns": 5.347196102142334,
-    "nll": 0.21946839491526285,
-    "outlier_bce": 0.7216713627179464,
+    "parameters": 827,
+    "mae_ns": 3.8328285217285156,
+    "nll": -0.05276104683677355,
+    "outlier_bce": 0.4146725535392761,
     "selected_channels": {
       "c1": [
-        0,
         1,
+        2,
         4,
         6,
         7,
-        8
+        9
       ],
       "c2": [
         0,
-        1,
+        2,
         3,
-        4,
-        5,
-        6,
-        7,
-        11
-      ],
-      "c3": [
-        0,
-        3,
-        4,
         6,
         7,
         8,
         9,
+        12
+      ],
+      "c3": [
+        0,
+        2,
+        3,
+        6,
+        7,
+        9,
         10,
+        12
+      ],
+      "hidden": [
+        1,
+        2,
+        5,
+        9,
         12,
-        13
+        13,
+        14,
+        15
       ]
-    }
+    },
+    "checkpoint": "results/esp32s3_smoke/checkpoints/best_student.pt"
   },
   "random_compact_control": {
-    "parameters": 951,
-    "mae_ns": 3.279438018798828,
-    "nll": -0.7053850094477335,
-    "outlier_bce": 0.5972450772921244
+    "role": "scientific_control_only_not_exported",
+    "arch": {
+      "channels": [
+        6,
+        8,
+        8
+      ],
+      "hidden": 8
+    },
+    "parameters": 827,
+    "mae_ns": 3.572484254837036,
+    "nll": -0.5893843372662863,
+    "outlier_bce": 0.3127860327561696,
+    "lth_beats_control_on_mae": false
   },
-  "selected_for_deployment": "random_compact_control",
-  "selected_validation_mae_ns": 3.279438018798828,
   "export": {
-    "checkpoint": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/checkpoints/best_student.pt",
-    "parameters": 951,
-    "weight_blob_bytes": 1044,
-    "weight_blob_sha256": "c71eca367927d3188991e5e9c20579773e9b50116379ae9e840699eaa4f5eb81",
-    "header_bytes": 11618,
-    "float_vs_raw_int8_raw_mae": 0.016998961567878723,
-    "float_vs_raw_int8_raw_max_abs": 0.04206991195678711,
-    "float_vs_raw_int8_mean_delay_mae_ns": 0.05126607418060303,
-    "float_vs_raw_int8_scale_mae_ns": 0.06347014009952545,
-    "float_vs_raw_int8_outlier_mae": 0.003375306725502014,
+    "checkpoint": "/mnt/data/work_sim/simulate-python-main/results/esp32s3_smoke/checkpoints/best_student.pt",
+    "parameters": 827,
+    "weight_blob_bytes": 904,
+    "weight_blob_sha256": "e32f69889023c4cccbb3ae1eef70280c5a309fb05d9e989fe121b5fb8b35242e",
+    "header_bytes": 11117,
+    "float_vs_raw_int8_raw_mae": 0.010086347348988056,
+    "float_vs_raw_int8_raw_max_abs": 0.04236865043640137,
+    "float_vs_raw_int8_mean_delay_mae_ns": 0.0925220251083374,
+    "float_vs_raw_int8_scale_mae_ns": 0.09032559394836426,
+    "float_vs_raw_int8_outlier_mae": 0.0016789771616458893,
     "onnx": null,
     "espdl": null,
     "runtime_constants": {
-      "runtime_constants_header": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/export/uwb_runtime_constants.h",
-      "background_blob": "/mnt/data/simulate-python-final/simulate-python-main/results/esp32s3_smoke/export/uwb_background_u8.bin",
+      "runtime_constants_header": "/mnt/data/work_sim/simulate-python-main/results/esp32s3_smoke/export/uwb_runtime_constants.h",
+      "background_blob": "/mnt/data/work_sim/simulate-python-main/results/esp32s3_smoke/export/uwb_background_u8.bin",
       "background_blob_bytes": 2112
     }
   }

@@ -1,0 +1,64 @@
+# Final official-data embedded experiment. If the standardized MAT file is not
+# present, the pipeline automatically downloads the official GitHub repository,
+# downloads Dyn_CIR_VAR.mat from the author-provided Google Drive link, fixes the
+# official MATLAB schema, and converts it before training.
+data_path: data/uwb_original_standard.mat
+output_dir: results/esp32s3_official
+case: 1
+seed: 11
+input_length: 176
+augmentation_probability: 0.30
+validation_fraction: 0.15
+use_teacher_distillation: false
+
+official_data:
+  auto_download: true
+  source_dir: data/original_uwb/UWB-Radar-Pedestrian-Tracking
+  force_download: false
+  force_convert: false
+
+supernet:
+  channels: [12, 18, 24]
+  hidden: 24
+
+ticket_candidates:
+  - channels: [6, 8, 8]
+    hidden: 10
+  - channels: [8, 10, 10]
+    hidden: 12
+  - channels: [8, 12, 12]
+    hidden: 16
+  - channels: [10, 16, 20]
+    hidden: 18
+  - channels: [12, 18, 24]
+    hidden: 20
+
+lth_search:
+  # "High result" is enforced explicitly: export is allowed only when an LTH
+  # ticket remains inside BOTH the relative/absolute MAE limits plus NLL/outlier-quality limits below.
+  max_relative_mae_loss: 0.08
+  max_absolute_mae_loss_ns: 0.03
+  max_nll_increase: 0.25
+  max_outlier_bce_increase: 0.10
+  require_accuracy_guard: true
+
+training:
+  epochs_supernet: 50
+  epochs_ticket: 60
+  epochs_control: 60
+  batch_size: 64
+  learning_rate: 0.002
+  weight_decay: 0.0001
+  patience: 12
+  student_nu: 4.0
+  min_scale_fraction: 0.004
+  distill_mean_weight: 0.0
+  distill_scale_weight: 0.0
+  corruption_weight: 0.15
+  device: cpu
+
+export:
+  target: esp32s3
+  calibration_samples: 512
+  onnx: false
+  espdl: false

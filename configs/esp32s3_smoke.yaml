@@ -9,11 +9,24 @@ use_teacher_distillation: false
 
 supernet:
   channels: [10, 14, 16]
-  hidden: 12
+  hidden: 16
 
-ticket:
-  channels: [6, 8, 10]
-  hidden: 12
+ticket_candidates:
+  - channels: [6, 8, 8]
+    hidden: 8
+  - channels: [8, 10, 12]
+    hidden: 12
+  - channels: [10, 14, 16]
+    hidden: 14
+
+# Smoke training is intentionally only two epochs, so use a loose guard to
+# exercise the full search/export path rather than claim final accuracy.
+lth_search:
+  max_relative_mae_loss: 0.60
+  max_absolute_mae_loss_ns: 5.0
+  max_nll_increase: 10.0
+  max_outlier_bce_increase: 10.0
+  require_accuracy_guard: false
 
 training:
   epochs_supernet: 2

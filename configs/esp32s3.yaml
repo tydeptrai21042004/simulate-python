@@ -6,18 +6,37 @@ input_length: 176
 augmentation_probability: 0.30
 validation_fraction: 0.15
 
-# Optional rich offline teacher. The included quick teacher is usable for a
-# smoke run; for final experiments train a converged teacher first.
+# Optional rich offline teacher. The bundled quick teacher is only for the
+# synthetic smoke/demo path. Train a converged teacher for final experiments.
 teacher_checkpoint_dir: results/quick/checkpoints/case1_seed11
 use_teacher_distillation: true
 
+# Wider discovery network. Hidden width is also prunable by the structured LTH search.
 supernet:
   channels: [12, 18, 24]
-  hidden: 16
+  hidden: 24
 
-ticket:
-  channels: [8, 12, 12]
-  hidden: 16
+# Progressive physically-dense Lottery Ticket candidates. They are tried from
+# smallest parameter count upward and training stops at the first candidate
+# that satisfies the MAE guard. The exporter NEVER substitutes the random control.
+ticket_candidates:
+  - channels: [6, 8, 8]
+    hidden: 10
+  - channels: [8, 10, 10]
+    hidden: 12
+  - channels: [8, 12, 12]
+    hidden: 16
+  - channels: [10, 16, 20]
+    hidden: 18
+  - channels: [12, 18, 24]
+    hidden: 20
+
+lth_search:
+  max_relative_mae_loss: 0.08
+  max_absolute_mae_loss_ns: 0.03
+  max_nll_increase: 0.25
+  max_outlier_bce_increase: 0.10
+  require_accuracy_guard: true
 
 training:
   epochs_supernet: 30
