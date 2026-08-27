@@ -132,7 +132,11 @@ def _minmax_rows(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
 
 
 def _resample_last_axis(x: np.ndarray, old_grid: np.ndarray, length: int) -> np.ndarray:
-    new_grid = np.linspace(float(old_grid[0]), float(old_grid[-1]), length)
+    if int(length) < 1:
+        raise ValueError("length must be >= 1")
+    if x.shape[-1] != np.asarray(old_grid).size:
+        raise ValueError("old_grid length must match the last axis of x")
+    new_grid = np.linspace(float(old_grid[0]), float(old_grid[-1]), int(length))
     flat = x.reshape(-1, x.shape[-1])
     out = np.empty((flat.shape[0], length), dtype=np.float32)
     for row in range(flat.shape[0]):
@@ -158,7 +162,13 @@ def prepare_inputs(
     obs: ObservationSet,
     input_length: int = 500,
 ) -> PreparedInputs:
+    if int(input_length) < 1:
+        raise ValueError("input_length must be >= 1")
     n, l, _ = obs.cir_dynamic.shape
+    if n < 1:
+        raise ValueError("observation set must contain at least one timestamp")
+    if l != data.num_links:
+        raise ValueError("observation link count does not match dataset geometry")
     cir_dyn = _resample_last_axis(obs.cir_dynamic, data.delay_grid_ns, input_length)
     var_dyn = _resample_last_axis(obs.var_dynamic, data.delay_grid_ns, input_length)
     cir_bg = _resample_last_axis(data.cir_background, data.delay_grid_ns, input_length)

@@ -1,3 +1,9 @@
+# ESP32 deployment edition
+
+For the complete Python training → structured Lottery Ticket → INT8/ESP-DL export workflow, see **[README_ESP32.md](README_ESP32.md)**.
+
+---
+
 # UWB Passive Human Tracking — Python Research Pipeline
 
 This repository is a complete Python/PyTorch replacement for the previous MATLAB-only simulation. It contains two connected research tracks:
@@ -38,7 +44,7 @@ The core hypothesis is testable: **a model that estimates both ToF and link-spec
 
 - 3 trajectory partitions.
 - Default 5 random seeds.
-- LoS, one-link NLoS, two-link NLoS, random outlier and dropout scenarios.
+- LoS, one-link NLoS, two-link NLoS, random outlier and dropout scenarios. An optional extended robustness config adds burst-NLoS, burst-dropout and mixed corruption without changing the default protocol.
 - Time-level train/validation separation for the scientific protocol, plus a separate official 85/15 sample-split mode for parity auditing.
 - Mean, standard deviation and 95% confidence interval.
 - Paired Wilcoxon tests and proposed-method win rate.
@@ -69,6 +75,8 @@ Python 3.10+ is supported. A CUDA GPU is recommended for the full 3-case × 5-se
 ```bash
 pytest
 ```
+
+The final ESP32 edition currently passes **58 tests**.
 
 ### 2. Quick end-to-end run
 
@@ -140,16 +148,25 @@ Each experiment directory contains:
 ```text
 src/uwb_tracking/
 ├── data.py                 # MAT loading, geometry, splits, preprocessing
-├── simulation.py           # unbiased NLoS/outlier/dropout corruption
-├── training.py             # losses, training, validation, prediction
+├── simulation.py           # original + optional extended corruption scenarios
+├── training.py             # research-model training/validation/prediction
 ├── experiments.py          # benchmark, statistics, ablation, sweeps
+├── deployment.py           # frame-at-a-time low-RAM preprocessing/inference
 ├── metrics.py              # tracking, ToF and uncertainty metrics
 ├── plotting.py             # trajectory, CDF and summary plots
 ├── models/
 │   ├── paper_cnn.py        # paper-faithful residual CNN baseline
-│   └── proposed.py         # U-FusePF uncertainty fusion network
+│   ├── proposed.py         # U-FusePF uncertainty fusion network
+│   ├── lite.py             # lightweight two-branch model
+│   └── lottery.py          # structured/unstructured LTH utilities
+├── esp32/
+│   ├── model.py            # ~1-2k parameter deployment student
+│   ├── training.py         # compact training/distillation
+│   ├── teacher.py          # offline ensemble-teacher targets
+│   ├── exporter.py         # BN fold + raw INT8/ONNX/ESP-DL export
+│   └── preprocess_export.py# background/geometry constants for firmware
 └── tracking/
-    └── particle_filter.py  # equal and uncertainty-aware Student-t PF
+    └── particle_filter.py  # optimized uncertainty-aware Student-t PF
 ```
 
 ## Interpretation and research claims
@@ -162,3 +179,15 @@ A valid final conclusion requires the official experimental data or new measurem
 2. Official code: `https://github.com/CLongLi/UWB-Radar-Pedestrian-Tracking`.
 3. A. Ledergerber and R. D’Andrea, “A multi-static radar network with ultra-wideband radio-equipped devices,” *Sensors*, 2020.
 4. F. Gustafsson et al., “Particle filters for positioning, navigation, and tracking,” *IEEE Transactions on Signal Processing*, 2002.
+
+## Lightweight / Lottery-Ticket Deployment Path
+
+For CPU/edge deployment, see [`docs/LIGHTWEIGHT_DEPLOYMENT.md`](docs/LIGHTWEIGHT_DEPLOYMENT.md).
+The added path includes a 5.2k-parameter dense Conv1D uncertainty model, structured lottery-ticket channel selection with weight rewinding, streaming preprocessing, and a vectorized Student-t particle filter that reuses particle-to-anchor distances.
+
+Quick commands:
+
+```bash
+python scripts/benchmark_deployment.py --length 176 --threads 1
+python scripts/train_structured_ticket.py --config configs/deployment_lottery.yaml --case 1 --seed 11
+```

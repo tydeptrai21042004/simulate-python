@@ -39,6 +39,8 @@ class ParticleFilterConfig:
     outlier_prior: float = 0.05
     broad_scale_ns: float = 7.0
     student_nu: float = 4.0
+    # Keep float64 as the scientific default; deployment config can select float32.
+    numeric_dtype: str = "float64"
     bounds_xy: list[list[float]] = field(
         default_factory=lambda: [[-4.5, 3.2], [-4.4, 0.8]]
     )

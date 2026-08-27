@@ -52,7 +52,12 @@ def student_t_nll(
     return constant + torch.log(scale) + 0.5 * (nu + 1.0) * torch.log1p(z2 / nu)
 
 
-def proposed_loss(outputs: dict[str, torch.Tensor], target: torch.Tensor, nu: float) -> torch.Tensor:
+def proposed_loss(
+    outputs: dict[str, torch.Tensor],
+    target: torch.Tensor,
+    nu: float,
+    corruption_target: torch.Tensor | None = None,
+) -> torch.Tensor:
     main = student_t_nll(target, outputs["mean_fraction"], outputs["scale_fraction"], nu).mean()
     cir = student_t_nll(target, outputs["cir_mean_fraction"], outputs["cir_scale_fraction"], nu).mean()
     var = student_t_nll(target, outputs["var_mean_fraction"], outputs["var_scale_fraction"], nu).mean()
@@ -64,7 +69,7 @@ def proposed_loss(outputs: dict[str, torch.Tensor], target: torch.Tensor, nu: fl
     reliability = torch.exp(-outputs["cir_scale_fraction"].detach() - outputs["var_scale_fraction"].detach())
     consistency = (reliability * torch.abs(outputs["cir_mean_fraction"] - outputs["var_mean_fraction"])).mean()
     scale_regularizer = outputs["scale_fraction"].mean()
-    return (
+    loss = (
         0.5 * main
         + 4.0 * location
         + 0.08 * (cir + var)
@@ -72,10 +77,30 @@ def proposed_loss(outputs: dict[str, torch.Tensor], target: torch.Tensor, nu: fl
         + 0.02 * consistency
         + 0.01 * scale_regularizer
     )
+    if corruption_target is not None and "outlier_logit" in outputs:
+        corruption_target = corruption_target.to(dtype=target.dtype)
+        positives = torch.sum(corruption_target)
+        negatives = corruption_target.numel() - positives
+        pos_weight = torch.clamp(negatives / torch.clamp(positives, min=1.0), 1.0, 6.0)
+        quality_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+            outputs["outlier_logit"], corruption_target, pos_weight=pos_weight
+        )
+        loss = loss + 0.15 * quality_loss
+    return loss
 
 
-def _make_loader(x: np.ndarray, y: np.ndarray, batch_size: int, shuffle: bool, seed: int) -> DataLoader:
-    dataset = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
+def _make_loader(
+    x: np.ndarray,
+    y: np.ndarray,
+    batch_size: int,
+    shuffle: bool,
+    seed: int,
+    auxiliary: np.ndarray | None = None,
+) -> DataLoader:
+    tensors = [torch.from_numpy(x), torch.from_numpy(y)]
+    if auxiliary is not None:
+        tensors.append(torch.from_numpy(auxiliary))
+    dataset = TensorDataset(*tensors)
     generator = torch.Generator().manual_seed(seed)
     return DataLoader(
         dataset,
@@ -175,6 +200,7 @@ def train_one(
     checkpoint_path: Path | None = None,
     learning_rate: float | None = None,
     batch_size: int | None = None,
+    train_corruption: np.ndarray | None = None,
 ) -> TrainedModel:
     set_seed(seed)
     device = resolve_device(cfg.device)
@@ -187,7 +213,9 @@ def train_one(
     else:
         raise ValueError("model.optimizer must be 'adam' or 'adamw'")
     actual_batch = cfg.model.batch_size if batch_size is None else batch_size
-    train_loader = _make_loader(train_x, train_y, actual_batch, True, seed)
+    train_loader = _make_loader(
+        train_x, train_y, actual_batch, True, seed, auxiliary=train_corruption
+    )
     best_state = copy.deepcopy(model.state_dict())
     best_val = float("inf")
     bad_epochs = 0
@@ -195,12 +223,13 @@ def train_one(
 
     for _epoch in range(cfg.model.epochs):
         model.train()
-        for xb, yb in train_loader:
-            xb, yb = xb.to(device), yb.to(device)
+        for batch in train_loader:
+            xb, yb = batch[0].to(device), batch[1].to(device)
+            corruption = batch[2].to(device) if len(batch) > 2 else None
             optimizer.zero_grad(set_to_none=True)
             out = model(xb)
             if input_kind == "fusion":
-                loss = proposed_loss(out, yb, cfg.model.student_nu)
+                loss = proposed_loss(out, yb, cfg.model.student_nu, corruption)
             else:
                 # MATLAB regressionLayer optimizes mean squared error.
                 loss = torch.nn.functional.mse_loss(out["mean_index"], yb)
@@ -366,6 +395,9 @@ def train_models_for_case(
     fusion_y = np.concatenate(
         [clean_train.target_fraction, clean_train.target_fraction, augmented.target_fraction], axis=0
     )
+    fusion_corruption = np.concatenate(
+        [clean_train.corruption, clean_train.corruption, augmented.corruption], axis=0
+    ).astype(np.float32)
     out = Path(checkpoint_dir)
 
     cir_mean = torch.from_numpy(paper_cir_train.mean(axis=0, keepdims=True))
@@ -419,6 +451,7 @@ def train_models_for_case(
             out / f"proposed_{proposed_ablation}.pt",
             learning_rate=2.0 * cfg.model.learning_rate,
             batch_size=cfg.model.batch_size,
+            train_corruption=fusion_corruption,
         )
     return models
 
@@ -450,7 +483,13 @@ def predict_delays(
             else:
                 means.append(out["mean_index"].cpu().numpy())
                 scales.append(np.full(xb.shape[0], trained.global_scale_ns, dtype=np.float32))
-            for key in ("gate_cir", "gate_var", "cir_scale_fraction", "var_scale_fraction"):
+            for key in (
+                "gate_cir",
+                "gate_var",
+                "cir_scale_fraction",
+                "var_scale_fraction",
+                "outlier_probability",
+            ):
                 if key in out:
                     extras.setdefault(key, []).append(out[key].cpu().numpy())
     elapsed_ms_per_sample = 1000.0 * (time.perf_counter() - started) / max(1, x.shape[0])

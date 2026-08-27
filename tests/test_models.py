@@ -39,3 +39,41 @@ def test_student_t_loss_prefers_correct_mean():
     good = student_t_nll(target, torch.tensor([0.5]), scale).item()
     bad = student_t_nll(target, torch.tensor([0.9]), scale).item()
     assert good < bad
+
+
+def test_lite_model_is_physically_small_and_keeps_uncertainty_interface():
+    from uwb_tracking.models import LiteArchitecture, LiteUncertaintyFusionNet
+
+    model = LiteUncertaintyFusionNet(arch=LiteArchitecture((8, 12, 16), 12, 24)).eval()
+    out = model(torch.rand(6, 6, 176))
+    assert sum(p.numel() for p in model.parameters()) == 5167
+    assert out["mean_fraction"].shape == (6,)
+    assert torch.all(out["scale_fraction"] > 0)
+    assert torch.allclose(out["gate_cir"] + out["gate_var"], torch.ones(6), atol=1e-5)
+
+
+def test_structured_ticket_rewinds_selected_channels_and_shrinks_model():
+    import copy
+    from uwb_tracking.models import (
+        LiteArchitecture,
+        LiteUncertaintyFusionNet,
+        build_rewound_structured_ticket,
+    )
+
+    torch.manual_seed(7)
+    source_arch = LiteArchitecture((10, 14, 18), 12, 24)
+    target_arch = LiteArchitecture((6, 10, 12), 12, 24)
+    supernet = LiteUncertaintyFusionNet(arch=source_arch)
+    initial = copy.deepcopy(supernet.state_dict())
+    with torch.no_grad():
+        # Make ranking deterministic and different across channels.
+        for idx in range(supernet.cir_encoder.conv1.weight.shape[0]):
+            supernet.cir_encoder.conv1.weight[idx].fill_(float(idx + 1))
+    ticket, selection = build_rewound_structured_ticket(supernet, initial, target_arch)
+    assert ticket.cir_encoder.conv1.out_channels == 6
+    assert ticket.cir_encoder.conv3.out_channels == 12
+    assert sum(p.numel() for p in ticket.parameters()) < sum(p.numel() for p in supernet.parameters())
+    expected = initial["cir_encoder.conv1.weight"][selection.cir_c1]
+    assert torch.allclose(ticket.cir_encoder.conv1.weight, expected)
+    out = ticket(torch.rand(3, 6, 176))
+    assert out["mean_fraction"].shape == (3,)

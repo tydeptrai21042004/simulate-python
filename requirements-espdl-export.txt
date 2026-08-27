@@ -1,0 +1,5 @@
+# Install after the normal training dependencies.
+# ESP-DL official toolchain uses ESP-PPQ for quantization/export.
+onnx>=1.17
+onnxscript
+esp-ppq>=1.2.10

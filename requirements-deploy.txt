@@ -1,0 +1,5 @@
+# Minimal Python deployment path for LiteUncertaintyFusionNet + optimized PF.
+# For a smaller final image, export the model to a target-specific runtime and
+# replace PyTorch entirely.
+numpy>=1.24
+torch>=2.1

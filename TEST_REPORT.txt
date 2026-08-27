@@ -1,21 +1,22 @@
-UWB Passive Tracking Python - verification report
-Date: 2026-07-23
+FINAL ESP32 PYTHON PIPELINE TEST REPORT
+Date: 2026-08-27
 
-1. Python compileall: PASS
-2. PyTest: 10 passed
-3. Editable package installation with --no-build-isolation: PASS
-4. CLI discovery (`uwb-track --help`): PASS
-5. Quick end-to-end run: PASS
-   - case: 1
-   - seed: 11
-   - scenarios: los, nlos1, outlier, dropout
-   - methods: 6
-   - result rows: 24
-6. Determinism check: PASS
-   - all non-runtime numerical metrics exactly reproduced across two complete runs
-7. Revised proposal: PASS
-   - DOCX rendered to 5 pages
-   - all pages visually inspected
-   - PDF independently rendered to 5 pages without clipping or broken tables
+Automated suite:
+  Command: pytest -q
+  Result: 58 passed
+  Warnings: 0
 
-Boundary: quick-run results use the bundled synthetic dataset and are not paper-reproduction evidence.
+Static compilation:
+  Command: python -m compileall -q src scripts tests
+  Result: PASS
+
+End-to-end ESP32 smoke pipeline:
+  Command: PYTHONPATH=src python scripts/train_esp32_pipeline.py --config configs/esp32s3_smoke.yaml --no-teacher
+  Result: PASS
+  Selected compact model: random_compact_control (this short smoke run only)
+  Parameters: 951
+  Raw INT8 weight blob: 1,044 bytes
+  Float-vs-custom-INT8 decoded mean-delay MAE: ~0.0513 ns
+  Runtime background blob: 2,112 bytes
+
+The smoke result validates integration/export only. It is not a final scientific accuracy result.
