@@ -3,41 +3,57 @@ output_dir: results/esp32s3
 case: 1
 seed: 11
 input_length: 176
-augmentation_probability: 0.30
+augmentation_probability: 0.3
 validation_fraction: 0.15
-
-# Optional rich offline teacher. The bundled quick teacher is only for the
-# synthetic smoke/demo path. Train a converged teacher for final experiments.
 teacher_checkpoint_dir: results/quick/checkpoints/case1_seed11
 use_teacher_distillation: true
-
-# Wider discovery network. Hidden width is also prunable by the structured LTH search.
 supernet:
-  channels: [12, 18, 24]
+  channels:
+  - 12
+  - 18
+  - 24
   hidden: 24
-
-# Progressive physically-dense Lottery Ticket candidates. They are tried from
-# smallest parameter count upward and training stops at the first candidate
-# that satisfies the MAE guard. The exporter NEVER substitutes the random control.
 ticket_candidates:
-  - channels: [6, 8, 8]
-    hidden: 10
-  - channels: [8, 10, 10]
-    hidden: 12
-  - channels: [8, 12, 12]
-    hidden: 16
-  - channels: [10, 16, 20]
-    hidden: 18
-  - channels: [12, 18, 24]
-    hidden: 20
-
+- channels:
+  - 6
+  - 8
+  - 8
+  hidden: 10
+- channels:
+  - 8
+  - 10
+  - 10
+  hidden: 12
+- channels:
+  - 8
+  - 12
+  - 12
+  hidden: 16
+- channels:
+  - 10
+  - 16
+  - 20
+  hidden: 18
+- channels:
+  - 12
+  - 18
+  - 24
+  hidden: 20
 lth_search:
   max_relative_mae_loss: 0.08
   max_absolute_mae_loss_ns: 0.03
   max_nll_increase: 0.25
-  max_outlier_bce_increase: 0.10
+  max_outlier_bce_increase: 0.1
   require_accuracy_guard: true
-
+  max_robust_relative_mae_loss: 0.08
+  max_robust_absolute_mae_loss_ns: 0.05
+  max_int8_mae_increase_ns: 0.03
+  max_int8_robust_mae_increase_ns: 0.04
+  max_int8_nll_increase: 0.2
+  max_int8_outlier_bce_increase: 0.08
+  tracking_guard_particles: 128
+  max_tracking_rmse_increase_cm: 8.0
+  max_int8_tracking_rmse_increase_cm: 8.0
 training:
   epochs_supernet: 30
   epochs_ticket: 40
@@ -52,9 +68,36 @@ training:
   distill_scale_weight: 0.25
   corruption_weight: 0.15
   device: cpu
-
 export:
   target: esp32s3
   calibration_samples: 256
   onnx: false
   espdl: false
+robust_validation:
+  scenario: mixed
+  correlated_false_peak_probability: 0.5
+  severity: 1.0
+deployment_evaluation:
+  enabled: true
+  scenarios:
+  - los
+  - nlos1
+  - nlos2
+  - outlier
+  - dropout
+  correlated_false_peak_probability: 0.5
+  severity: 1.0
+  particle_filter:
+    num_particles: 200
+    position_noise_m: 0.08
+    velocity_noise_mps: 0.2
+    resample_fraction: 0.6
+    outlier_prior: 0.05
+    broad_scale_ns: 7.0
+    student_nu: 4.0
+    numeric_dtype: float32
+    bounds_xy:
+    - - -4.5
+      - 3.2
+    - - -4.4
+      - 0.8

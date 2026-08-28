@@ -1,30 +1,34 @@
 data_path: data/uwb_original_standard.mat
-output_dir: results/paper_reproduction_original
+output_dir: results/full_official
 cases:
 - 1
 - 2
 - 3
 seeds:
-- 2022
+- 11
+- 22
+- 33
+- 44
+- 55
 scenarios:
 - los
+- nlos1
+- nlos2
+- outlier
+- dropout
 device: auto
+correlated_false_peak_probability: 0.5
 model:
+  paper_indexing_mode: corrected
   input_length: 500
-  epochs: 50
+  epochs: 40
   batch_size: 64
-  paper_batch_fraction: 0.1
   learning_rate: 0.001
-  weight_decay: 0.0
-  optimizer: adam
-  early_stopping: false
-  restore_best: false
-  paper_indexing_mode: repository
-  paper_validation_mode: sample
-  paper_validation_fraction: 0.15
-  augmentation_probability: 0.0
+  patience: 8
+  augmentation_probability: 0.25
 particle_filter:
   num_particles: 200
+  outlier_prior: 0.05
 official_data:
   auto_download: true
   source_dir: data/original_uwb/UWB-Radar-Pedestrian-Tracking

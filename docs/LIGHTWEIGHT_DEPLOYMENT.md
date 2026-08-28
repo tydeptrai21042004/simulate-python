@@ -1,80 +1,113 @@
-# Lightweight U-FusePF deployment
+# Lightweight deployment: structured Lottery Ticket to fixed-point INT8 export
 
-This branch adds a deployment-first path without changing the Student-t measurement model or the Particle Filter geometry.
+## Purpose
 
-## Recommended stack
+The lightweight path is designed for **simulation/training/export**. It produces a physically compact neural network and a deterministic integer-reference contract; it does not require this repository to contain target firmware.
 
-- Native 176 delay bins first; test 128 only after retraining and multi-seed validation.
-- `LiteUncertaintyFusionNet`: dense Conv1D widths 8/12/16, 5,167 trainable parameters.
-- Batched six-link inference with `torch.inference_mode()`.
-- Streaming preprocessing with pre-normalized static backgrounds.
-- Particle Filter with anchor-distance reuse, precomputed Student-t constants, and optional FP32 arithmetic.
-- Start with 128 particles and validate 96/128/180/256 before fixing the deployment value.
+## Current deployment model
 
-## Why dense Conv1D instead of depthwise Conv1D?
+`src/uwb_tracking/esp32/model.py` defines the early-fusion student. Input channels are dynamic/background/difference for CIR and variance. The physical architecture is discovered from a wider supernet rather than fixed to the older research-lite network in `models/lite.py`.
 
-Depthwise separable convolution has fewer MACs, but weak/general-purpose CPUs do not always provide optimized grouped-convolution kernels. The included `scripts/benchmark_deployment.py` measures the actual target rather than assuming fewer MACs means lower latency.
+The official candidate ladder is currently:
 
-## Structured lottery ticket
+| Conv widths | FC hidden | Approx. trainable parameters |
+|---|---:|---:|
+| 6 / 8 / 8 | 10 | 851 |
+| 8 / 10 / 10 | 12 | 1,263 |
+| 8 / 12 / 12 | 16 | 1,571 |
+| 10 / 16 / 20 | 18 | 2,707 |
+| 12 / 18 / 24 | 20 | 3,551 |
 
-Run:
+The exact parameter count can differ when another hidden width is configured; the pipeline records the actual selected graph.
+
+## Structured-LTH search
+
+The procedure is intentionally **structured** so parameter reduction also reduces the physical graph:
+
+```text
+train wider supernet
+ -> score Conv1 output channels with |W| and |BN gamma|
+ -> retain Conv1
+ -> score Conv2 through retained Conv1 inputs
+ -> retain Conv2
+ -> score Conv3 through retained Conv2 inputs
+ -> retain Conv3
+ -> rank FC hidden neurons from incoming + outgoing importance
+ -> build compact graph
+ -> rewind retained weights/BN/FC parameters to initialization
+ -> retrain
+```
+
+The random compact network of the same architecture is a control only. Normal export checks the checkpoint metadata and refuses a non-LTH checkpoint unless an explicit debug override is used.
+
+## Quality-preserving acceptance
+
+The smallest graph is not automatically accepted. The official guard checks:
+
+- clean FP32 ToF MAE relative/absolute loss vs the discovery supernet;
+- robust FP32 ToF MAE on deterministic corruption;
+- robust NLL and outlier BCE;
+- held-out contiguous-sequence FP32 tracking RMSE;
+- clean and robust INT8 ToF degradation vs candidate FP32;
+- INT8 NLL/outlier-BCE degradation;
+- INT8 tracking RMSE degradation vs candidate FP32.
+
+This makes the optimization objective effectively:
+
+```text
+minimize physical model size
+subject to localization + uncertainty + tracking quality constraints
+before and after INT8 quantization.
+```
+
+## Integer export
+
+The custom exporter folds BatchNorm and quantizes weights per output channel. For each layer the v2 raw blob stores:
+
+```text
+INT8 weights
+INT32 biases
+INT32 Q31 requantization multipliers
+UINT8 right shifts
+```
+
+The Python integer reference performs INT8×INT8 accumulation in integer accumulators and fixed-point requantization. Output mean/scale/outlier nonlinearities are represented by LUTs in the generated header/runtime constants.
+
+## What model-size number to report
+
+Do not mix these quantities:
+
+- **parameters** — trainable scalar count of the selected network;
+- **raw model blob** — weights + biases + fixed-point requantization metadata;
+- **core static deployment data** — raw model blob + decode LUTs + static background profiles;
+- **working RAM** — activations and Particle Filter state/temporaries, which is separate.
+
+The synthetic smoke currently demonstrates 827 parameters, a 1,069-byte v2 model blob, and 4,461 bytes of core static data. Those are mechanism measurements, not official accuracy results.
+
+## Particle Filter efficiency
+
+The PF keeps the same bistatic geometry and Student-t likelihood concept but avoids allocating full `[particles, links]` expected/residual matrices. Particle-to-anchor distances are reused and links are accumulated one at a time. This reduces transient memory without changing the asymptotic `O(T × L × Np)` order.
+
+For fair scientific comparison, the official research benchmark uses 200 particles. The LTH selection guard can use fewer particles for development speed, while the final `deployment_evaluation` returns to the configured deployment count.
+
+## End-to-end validation
+
+`src/uwb_tracking/esp32/evaluation.py` evaluates both the folded FP32 graph and integer-reference graph through the same PF. Therefore quantization is accepted based on the application objective rather than only layer-output similarity.
+
+Run a single official case/seed with:
 
 ```bash
-python scripts/train_structured_ticket.py \
-  --config configs/deployment_lottery.yaml \
-  --case 1 --seed 11
+./RUN_ESP32_OFFICIAL.sh
 ```
 
-The script performs three experiments:
+Run the final multi-case/multi-seed deployment study with:
 
-1. Train a wider 12/18/24 supernet.
-2. Rank convolution channels by trained magnitude, select an 8/12/16 subnetwork, rewind those surviving weights to their original initialization, and retrain the physically compact ticket.
-3. Train an 8/12/16 random-initialization control.
-
-The third experiment is essential. A single ticket result is not evidence for the Lottery Ticket Hypothesis; the rewound ticket should match or beat the same compact architecture from a fresh initialization over repeated seeds.
-
-## Canonical unstructured IMP
-
-`uwb_tracking.models.apply_global_lottery_pruning()` and `rewind_pruned_model_()` are included for iterative magnitude-pruning experiments. Unstructured zeros mainly reduce stored nonzero weights unless the inference runtime has a sparse kernel. For generic CPU deployment, prefer the structured physically compact ticket.
-
-## Streaming frame path
-
-```python
-from uwb_tracking.deployment import StreamingPreprocessor, infer_frame
-
-prep = StreamingPreprocessor.from_data(data, input_length=176)
-features = prep.prepare_frame(cir_frame, var_frame)  # [6, 6, 176]
-mu_ns, sigma_ns = infer_frame(model, features, delay_max_ns=data.delay_grid_ns[-1])
+```bash
+./RUN_ESP32_STUDY.sh
 ```
 
-The background profiles are normalized once; only one frame is processed at a time.
+The latter aggregates sizes, guards, ToF metrics, tracking metrics, FP32-vs-INT8 deltas and LTH-vs-random-control outcomes.
 
-## Scientific validation before claiming improvement
+## Legacy lightweight model
 
-Report at least three seeds and all held-out cases. Compare:
-
-- ToF MAE/RMSE/P90.
-- tracking RMSE/MAE/P90.
-- uncertainty ECE/Brier and corruption AUROC/AUPRC.
-- parameters and nonzero parameters.
-- measured latency on the target hardware, not only MACs.
-- peak RAM / package size.
-
-For pruning, also compare a random compact model with exactly the same architecture and training budget.
-
-## Optional learned link-quality head
-
-The lite model also predicts `outlier_probability` with only 25 extra parameters. During robust training, the head receives the simulator's per-link corruption mask as an auxiliary target. `run_particle_filter` accepts an optional `predicted_outlier_probability` array so a calibrated quality score can increase the broad Student-t contamination prior on suspicious links.
-
-Treat this as an optional calibrated feature: a class-balanced quality head can have a nonzero baseline even on clean links. Validate or calibrate the probability on held-out training/validation timestamps before allowing it to change the PF mixture prior. The default PF behavior is unchanged when this argument is omitted.
-
-## Local smoke measurements in this repository
-
-On the development CPU with one PyTorch thread and six links at 176 bins:
-
-- research `UncertaintyFusionNet`: 32,950 parameters, about 1.16 ms per six-link frame;
-- dense lite model: 5,167 parameters, about 0.65 ms per six-link frame.
-
-The optimized PF preserves the same bistatic geometry and Student-t formula, but computes each particle-to-anchor distance once per update. In a local 180-particle benchmark it reduced median update time from roughly 0.38 ms to roughly 0.21 ms. Absolute latency is hardware-dependent; rerun the benchmark on the actual target.
-
-A 12-epoch one-seed structured-ticket smoke run produced 5,167 parameters and validation MAE about 0.585 ns versus about 0.737 ns for the same compact architecture from a fresh random initialization. This is only a smoke result, not a scientific LTH conclusion; use multiple seeds/cases before making that claim.
+`models/lite.py` and the older deployment-lottery scripts remain available for historical/research comparison. They are **not** the canonical final export path. The canonical export is `scripts/train_esp32_pipeline.py` plus `src/uwb_tracking/esp32/`.

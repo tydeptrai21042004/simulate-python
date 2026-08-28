@@ -1,5 +1,5 @@
 {
-  "format": "uwb-esp32-int8-v1",
+  "format": "uwb-esp32-int8-v2-per-channel-fixedpoint",
   "input_scale": 0.007874015748031496,
   "delay_max_ns": 35.0,
   "min_scale_fraction": 0.004,
@@ -11,16 +11,51 @@
         6,
         7
       ],
-      "weight_scale": 0.03554772579763818,
+      "quantization": "symmetric_int8_per_output_channel",
+      "weight_scale": [
+        0.019141262397170067,
+        0.006669364869594574,
+        0.011263459920883179,
+        0.013125388883054256,
+        0.01617261953651905,
+        0.012276393361389637
+      ],
       "input_scale": 0.007874015748031496,
-      "output_scale": 0.05891906182597002,
-      "multiplier": 0.004750641711914263,
+      "output_scale": 0.05855633142426258,
+      "multiplier": [
+        0.0025739078409969807,
+        0.0008968233014456928,
+        0.0015145870856940746,
+        0.0017649589572101831,
+        0.002174717141315341,
+        0.001650795224122703
+      ],
+      "requant_multiplier_q31": [
+        1415020809,
+        1972135354,
+        1665306064,
+        1940592842,
+        1195563422,
+        1815068589
+      ],
+      "requant_shift": [
+        39,
+        41,
+        40,
+        40,
+        39,
+        40
+      ],
       "stride": 2,
       "padding": 3,
       "weight_offset": 0,
       "weight_bytes": 252,
       "bias_offset": 252,
-      "bias_bytes": 24
+      "bias_bytes": 24,
+      "requant_multiplier_q31_offset": 276,
+      "requant_multiplier_q31_bytes": 24,
+      "requant_shift_offset": 300,
+      "requant_shift_bytes": 6
     },
     {
       "name": "conv2",
@@ -29,16 +64,59 @@
         6,
         5
       ],
-      "weight_scale": 0.00874973469831812,
-      "input_scale": 0.05891906182597002,
-      "output_scale": 0.05697321704053503,
-      "multiplier": 0.009048570300747743,
+      "quantization": "symmetric_int8_per_output_channel",
+      "weight_scale": [
+        0.00502272043377161,
+        0.005359251517802477,
+        0.003924204036593437,
+        0.0036145395133644342,
+        0.0025255633518099785,
+        0.0030270603019744158,
+        0.002031414769589901,
+        0.00500485859811306
+      ],
+      "input_scale": 0.05855633142426258,
+      "output_scale": 0.04350364489818183,
+      "multiplier": [
+        0.006760630756616592,
+        0.007213605102151632,
+        0.005282016936689615,
+        0.004865205381065607,
+        0.003399432869628072,
+        0.00407445291057229,
+        0.0027343041729182005,
+        0.006736588664352894
+      ],
+      "requant_multiplier_q31": [
+        1858348049,
+        1982860629,
+        1451909779,
+        1337337513,
+        1868858038,
+        1119977048,
+        1503199600,
+        1851739378
+      ],
+      "requant_shift": [
+        38,
+        38,
+        38,
+        38,
+        39,
+        38,
+        39,
+        38
+      ],
       "stride": 2,
       "padding": 2,
-      "weight_offset": 276,
+      "weight_offset": 306,
       "weight_bytes": 240,
-      "bias_offset": 516,
-      "bias_bytes": 32
+      "bias_offset": 546,
+      "bias_bytes": 32,
+      "requant_multiplier_q31_offset": 578,
+      "requant_multiplier_q31_bytes": 32,
+      "requant_shift_offset": 610,
+      "requant_shift_bytes": 8
     },
     {
       "name": "conv3",
@@ -47,16 +125,59 @@
         8,
         3
       ],
-      "weight_scale": 0.00996971505833423,
-      "input_scale": 0.05697321704053503,
-      "output_scale": 0.030322195038082093,
-      "multiplier": 0.018732375381709618,
+      "quantization": "symmetric_int8_per_output_channel",
+      "weight_scale": [
+        0.008269160985946655,
+        0.005915466696023941,
+        0.0095503069460392,
+        0.0074483719654381275,
+        0.008877032436430454,
+        0.010553117841482162,
+        0.009282318875193596,
+        0.007446713745594025
+      ],
+      "input_scale": 0.04350364489818183,
+      "output_scale": 0.03375893690454678,
+      "multiplier": [
+        0.010656100697815418,
+        0.007622999604791403,
+        0.012307057157158852,
+        0.009598386473953724,
+        0.011439437977969646,
+        0.013599335215985775,
+        0.011961712501943111,
+        0.009596250019967556
+      ],
+      "requant_multiplier_q31": [
+        1464563377,
+        2095394175,
+        1691469040,
+        1319192215,
+        1572224392,
+        1869078366,
+        1644005275,
+        1318898525
+      ],
+      "requant_shift": [
+        37,
+        38,
+        37,
+        37,
+        37,
+        37,
+        37,
+        37
+      ],
       "stride": 2,
       "padding": 1,
-      "weight_offset": 548,
+      "weight_offset": 618,
       "weight_bytes": 192,
-      "bias_offset": 740,
-      "bias_bytes": 32
+      "bias_offset": 810,
+      "bias_bytes": 32,
+      "requant_multiplier_q31_offset": 842,
+      "requant_multiplier_q31_bytes": 32,
+      "requant_shift_offset": 874,
+      "requant_shift_bytes": 8
     },
     {
       "name": "fc1",
@@ -64,16 +185,59 @@
         8,
         8
       ],
-      "weight_scale": 0.0033712516150136633,
-      "input_scale": 0.030322195038082093,
-      "output_scale": 0.016850901400949074,
-      "multiplier": 0.006066366810925385,
+      "quantization": "symmetric_int8_per_output_channel",
+      "weight_scale": [
+        0.003231996903195977,
+        0.003075886284932494,
+        0.0032304544001817703,
+        0.0032977547962218523,
+        0.0021791071631014347,
+        0.003272884525358677,
+        0.0017589397029951215,
+        0.0031601577065885067
+      ],
+      "input_scale": 0.03375893690454678,
+      "output_scale": 0.02234301980086199,
+      "multiplier": [
+        0.004883349873125553,
+        0.004647476132959127,
+        0.004881019238382578,
+        0.004982705693691969,
+        0.0032924977131187916,
+        0.004945128224790096,
+        0.0026576502714306116,
+        0.004774805158376694
+      ],
+      "requant_multiplier_q31": [
+        1342324950,
+        1277488509,
+        1341684312,
+        1369635763,
+        1810069751,
+        1359306549,
+        1461058733,
+        1312488429
+      ],
+      "requant_shift": [
+        38,
+        38,
+        38,
+        38,
+        39,
+        38,
+        39,
+        38
+      ],
       "stride": 1,
       "padding": 0,
-      "weight_offset": 772,
+      "weight_offset": 882,
       "weight_bytes": 64,
-      "bias_offset": 836,
-      "bias_bytes": 32
+      "bias_offset": 946,
+      "bias_bytes": 32,
+      "requant_multiplier_q31_offset": 978,
+      "requant_multiplier_q31_bytes": 32,
+      "requant_shift_offset": 1010,
+      "requant_shift_bytes": 8
     },
     {
       "name": "fc2",
@@ -81,20 +245,43 @@
         3,
         8
       ],
-      "weight_scale": 0.0030197745233070195,
-      "input_scale": 0.016850901400949074,
-      "output_scale": 0.020670474044919954,
-      "multiplier": 0.0024617685416774694,
+      "quantization": "symmetric_int8_per_output_channel",
+      "weight_scale": [
+        0.00221874937415123,
+        0.0026672533713281155,
+        0.003073155414313078
+      ],
+      "input_scale": 0.02234301980086199,
+      "output_scale": 0.03196485399261234,
+      "multiplier": [
+        0.0015508771175518632,
+        0.0018643756629899144,
+        0.0021480959840118885
+      ],
+      "requant_multiplier_q31": [
+        1705207444,
+        2049902687,
+        1180928218
+      ],
+      "requant_shift": [
+        40,
+        40,
+        39
+      ],
       "stride": 1,
       "padding": 0,
-      "weight_offset": 868,
+      "weight_offset": 1018,
       "weight_bytes": 24,
-      "bias_offset": 892,
-      "bias_bytes": 12
+      "bias_offset": 1042,
+      "bias_bytes": 12,
+      "requant_multiplier_q31_offset": 1054,
+      "requant_multiplier_q31_bytes": 12,
+      "requant_shift_offset": 1066,
+      "requant_shift_bytes": 3
     }
   ],
-  "total_bytes": 904,
-  "sha256": "e32f69889023c4cccbb3ae1eef70280c5a309fb05d9e989fe121b5fb8b35242e",
+  "total_bytes": 1069,
+  "sha256": "59da129c0ccda1df354f1c104d47323bb28de61563876c3939cdda1b6f725baf",
   "input_length": 176,
   "arch": {
     "channels": [
@@ -106,12 +293,12 @@
   },
   "activation_scales": {
     "input": 0.007874015748031496,
-    "conv1": 0.05891906182597002,
-    "conv2": 0.05697321704053503,
-    "conv3": 0.030322195038082093,
-    "pool": 0.030322195038082093,
-    "fc1": 0.016850901400949074,
-    "raw": 0.020670474044919954
+    "conv1": 0.05855633142426258,
+    "conv2": 0.04350364489818183,
+    "conv3": 0.03375893690454678,
+    "pool": 0.03375893690454678,
+    "fc1": 0.02234301980086199,
+    "raw": 0.03196485399261234
   },
   "target": "esp32s3"
 }

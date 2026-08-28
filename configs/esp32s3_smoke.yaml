@@ -3,31 +3,46 @@ output_dir: results/esp32s3_smoke
 case: 1
 seed: 11
 input_length: 176
-augmentation_probability: 0.20
+augmentation_probability: 0.2
 validation_fraction: 0.15
 use_teacher_distillation: false
-
 supernet:
-  channels: [10, 14, 16]
+  channels:
+  - 10
+  - 14
+  - 16
   hidden: 16
-
 ticket_candidates:
-  - channels: [6, 8, 8]
-    hidden: 8
-  - channels: [8, 10, 12]
-    hidden: 12
-  - channels: [10, 14, 16]
-    hidden: 14
-
-# Smoke training is intentionally only two epochs, so use a loose guard to
-# exercise the full search/export path rather than claim final accuracy.
+- channels:
+  - 6
+  - 8
+  - 8
+  hidden: 8
+- channels:
+  - 8
+  - 10
+  - 12
+  hidden: 12
+- channels:
+  - 10
+  - 14
+  - 16
+  hidden: 14
 lth_search:
-  max_relative_mae_loss: 0.60
+  max_relative_mae_loss: 0.6
   max_absolute_mae_loss_ns: 5.0
   max_nll_increase: 10.0
   max_outlier_bce_increase: 10.0
   require_accuracy_guard: false
-
+  max_robust_relative_mae_loss: 0.6
+  max_robust_absolute_mae_loss_ns: 5.0
+  max_int8_mae_increase_ns: 0.03
+  max_int8_robust_mae_increase_ns: 0.04
+  max_int8_nll_increase: 0.2
+  max_int8_outlier_bce_increase: 0.08
+  tracking_guard_particles: 32
+  max_tracking_rmse_increase_cm: 100.0
+  max_int8_tracking_rmse_increase_cm: 100.0
 training:
   epochs_supernet: 2
   epochs_ticket: 2
@@ -42,9 +57,33 @@ training:
   distill_scale_weight: 0.0
   corruption_weight: 0.15
   device: cpu
-
 export:
   target: esp32s3
   calibration_samples: 64
   onnx: false
   espdl: false
+robust_validation:
+  scenario: mixed
+  correlated_false_peak_probability: 0.5
+  severity: 1.0
+deployment_evaluation:
+  enabled: true
+  scenarios:
+  - los
+  - mixed
+  correlated_false_peak_probability: 0.5
+  severity: 1.0
+  particle_filter:
+    num_particles: 64
+    position_noise_m: 0.08
+    velocity_noise_mps: 0.2
+    resample_fraction: 0.6
+    outlier_prior: 0.05
+    broad_scale_ns: 7.0
+    student_nu: 4.0
+    numeric_dtype: float32
+    bounds_xy:
+    - - -4.5
+      - 3.2
+    - - -4.4
+      - 0.8

@@ -4,9 +4,9 @@
 
 Two residual CNNs reproduce the original method: one receives dynamic/background CIR and the other receives dynamic/background variance. They output excess-delay estimates `mu_c` and `mu_v`. Keeping these experts explicit provides a strong and interpretable connection to the original paper.
 
-## 2. Local reliability network
+## 2. Local reliability and outlier-confidence network
 
-A compact six-channel network receives dynamic, background and absolute-difference profiles for CIR and variance. Its modality branches predict local uncertainty and local reliability signals. It is trained with a heteroscedastic Student-t objective, robust location loss, auxiliary branch losses and a confidence-weighted consistency term.
+A compact six-channel network receives dynamic, background and absolute-difference profiles for CIR and variance. Its modality branches predict local uncertainty/reliability signals, while the fusion head also emits an explicit outlier logit. The outlier probability is supervised by the simulator corruption mask. The model is trained with a heteroscedastic Student-t objective, robust location loss, auxiliary branch losses, confidence-weighted consistency and the outlier-classification term when corruption labels are available.
 
 ## 3. Validation-prior reliability fusion
 
@@ -44,7 +44,7 @@ p(z_l | x) = (1-epsilon) StudentT(z_l - tau_l(x); sigma_l, nu)
              + epsilon StudentT(z_l - tau_l(x); sigma_out, 3)
 ```
 
-A link with large predicted uncertainty contributes a broader likelihood and cannot dominate reliable links.
+A link with large predicted uncertainty contributes a broader likelihood and cannot dominate reliable links. In the full method the learned outlier probability is also passed to the PF, so a link predicted to be corrupted receives more mass from the broad outlier component. The `no_uncertainty` ablation removes both the learned scale confidence and the outlier-confidence signal.
 
 ## 6. Scientific hypothesis
 

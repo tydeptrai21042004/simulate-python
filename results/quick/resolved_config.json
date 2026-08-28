@@ -1,6 +1,6 @@
 {
-  "data_path": "/mnt/data/UWB_Passive_Tracking_Python/data/uwb_demo_input.mat",
-  "output_dir": "/mnt/data/UWB_Passive_Tracking_Python/results/quick",
+  "data_path": "/mnt/data/uwb_improve_all/simulate-python-main/data/uwb_demo_input.mat",
+  "output_dir": "/mnt/data/uwb_improve_all/simulate-python-main/results/quick",
   "cases": [
     1
   ],
@@ -17,6 +17,7 @@
   "dt_s": 0.2,
   "device": "auto",
   "correlated_false_peak_probability": 0.5,
+  "official_data": {},
   "model": {
     "input_length": 256,
     "epochs": 8,
@@ -44,6 +45,7 @@
     "outlier_prior": 0.05,
     "broad_scale_ns": 7.0,
     "student_nu": 4.0,
+    "numeric_dtype": "float64",
     "bounds_xy": [
       [
         -4.5,

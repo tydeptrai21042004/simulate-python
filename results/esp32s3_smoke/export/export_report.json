@@ -1,14 +1,25 @@
 {
-  "checkpoint": "/mnt/data/work_sim/simulate-python-main/results/esp32s3_smoke/checkpoints/best_student.pt",
+  "checkpoint": "/mnt/data/uwb_improve_all/simulate-python-main/results/esp32s3_smoke/checkpoints/best_student.pt",
   "parameters": 827,
-  "weight_blob_bytes": 904,
-  "weight_blob_sha256": "e32f69889023c4cccbb3ae1eef70280c5a309fb05d9e989fe121b5fb8b35242e",
-  "header_bytes": 11117,
-  "float_vs_raw_int8_raw_mae": 0.010086347348988056,
-  "float_vs_raw_int8_raw_max_abs": 0.04236865043640137,
-  "float_vs_raw_int8_mean_delay_mae_ns": 0.0925220251083374,
-  "float_vs_raw_int8_scale_mae_ns": 0.09032559394836426,
-  "float_vs_raw_int8_outlier_mae": 0.0016789771616458893,
+  "quantization": "symmetric_int8_per_output_channel",
+  "requantization": "q31_multiplier_plus_right_shift",
+  "weight_blob_bytes": 1069,
+  "fp32_parameter_bytes": 3308,
+  "weight_storage_reduction_vs_fp32": 0.6768440145102781,
+  "decode_lut_bytes": 1280,
+  "weight_blob_sha256": "59da129c0ccda1df354f1c104d47323bb28de61563876c3939cdda1b6f725baf",
+  "header_bytes": 11865,
+  "float_vs_raw_int8_raw_mae": 0.021874191239476204,
+  "float_vs_raw_int8_raw_max_abs": 0.07491356134414673,
+  "float_vs_raw_int8_mean_delay_mae_ns": 0.13938969373703003,
+  "float_vs_raw_int8_scale_mae_ns": 0.272877037525177,
+  "float_vs_raw_int8_outlier_mae": 0.004117976874113083,
   "onnx": null,
-  "espdl": null
+  "espdl": null,
+  "runtime_constants": {
+    "runtime_constants_header": "/mnt/data/uwb_improve_all/simulate-python-main/results/esp32s3_smoke/export/uwb_runtime_constants.h",
+    "background_blob": "/mnt/data/uwb_improve_all/simulate-python-main/results/esp32s3_smoke/export/uwb_background_u8.bin",
+    "background_blob_bytes": 2112
+  },
+  "core_static_deployment_bytes": 4461
 }
