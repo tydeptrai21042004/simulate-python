@@ -84,6 +84,11 @@ def test_binary_export_is_deterministic_and_hash_matches(tmp_path: Path):
     digest = hashlib.sha256(a.read_bytes()).hexdigest()
     assert ma["sha256"] == digest == mb["sha256"]
     assert ma["total_bytes"] == a.stat().st_size
+    assert ma["format"] == "uwb-esp32-int8-v2-per-channel-fixedpoint"
+    first = ma["layers"][0]
+    assert first["quantization"] == "symmetric_int8_per_output_channel"
+    assert first["requant_multiplier_q31_bytes"] > 0
+    assert first["requant_shift_bytes"] > 0
 
 
 def test_header_contains_luts_and_all_layers(tmp_path: Path):
@@ -96,6 +101,8 @@ def test_header_contains_luts_and_all_layers(tmp_path: Path):
     assert "mean_fraction_q15_lut" in text
     assert "scale_ns_q8_lut" in text
     assert "outlier_probability_q8_lut" in text
+    assert "conv1_requant_multiplier_q31" in text
+    assert "conv1_requant_shift" in text
 
 
 def test_quantized_reference_is_reasonably_close_to_folded_float():

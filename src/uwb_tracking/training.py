@@ -217,7 +217,8 @@ def train_one(
         train_x, train_y, actual_batch, True, seed, auxiliary=train_corruption
     )
     best_state = copy.deepcopy(model.state_dict())
-    best_val = float("inf")
+    best_mae = float("inf")
+    best_nll = float("inf")
     bad_epochs = 0
     started = time.perf_counter()
 
@@ -250,9 +251,16 @@ def train_one(
             cfg.model.student_nu,
             actual_batch,
         )
-        score = val_nll if input_kind == "fusion" else val_mae
-        if score < best_val - 1e-5:
-            best_val = score
+        # Keep the checkpoint aligned with the project's primary ToF objective.
+        # For the uncertainty-aware model, NLL is a tie-breaker only when MAE is
+        # effectively unchanged; this prevents a very broad scale estimate from
+        # winning solely by likelihood while degrading localization accuracy.
+        improved = val_mae < best_mae - 1e-5
+        if input_kind == "fusion" and abs(val_mae - best_mae) <= 0.01:
+            improved = val_nll < best_nll - 1e-5
+        if improved:
+            best_mae = val_mae
+            best_nll = val_nll
             best_state = copy.deepcopy(model.state_dict())
             bad_epochs = 0
         else:

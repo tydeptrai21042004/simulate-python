@@ -30,7 +30,13 @@ def test_proposed_model_outputs_positive_scale_and_gates():
     out = model(torch.rand(4, 6, 128))
     assert out["mean_fraction"].shape == (4,)
     assert torch.all(out["scale_fraction"] > 0)
+    assert out["outlier_probability"].shape == (4,)
+    assert torch.all((out["outlier_probability"] >= 0) & (out["outlier_probability"] <= 1))
     assert torch.allclose(out["gate_cir"] + out["gate_var"], torch.ones(4), atol=1e-5)
+
+    no_uncertainty = UncertaintyFusionNet(ablation="no_uncertainty").eval()
+    ablated = no_uncertainty(torch.rand(2, 6, 128))
+    assert "outlier_probability" not in ablated
 
 
 def test_student_t_loss_prefers_correct_mean():

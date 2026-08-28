@@ -1,29 +1,39 @@
-FINAL ESP32 PYTHON PIPELINE TEST REPORT
-Date: 2026-08-27
-
-Automated suite:
-  Command: pytest -q
-  Result: 61 passed
-  Warnings: 0
+FINAL PYTHON SIMULATION / STRUCTURED-LTH / INT8 EXPORT TEST REPORT
+Date: 2026-08-28
 
 Static compilation:
   Command: python -m compileall -q src scripts tests
   Result: PASS
 
-End-to-end ESP32 smoke pipeline:
+Automated suite:
+  Command: PYTHONPATH=src pytest -q
+  Result: 64 passed
+
+End-to-end synthetic smoke:
   Command: PYTHONPATH=src python scripts/train_esp32_pipeline.py --config configs/esp32s3_smoke.yaml --no-teacher
   Result: PASS
-  Selected deployment type: structured_rewound_lth_ticket
-  Selected architecture: Conv channels [6, 8, 8], hidden 8
+  Selected role: structured_rewound_lth_ticket
+  Selected architecture: Conv [6, 8, 8], hidden 8
   Parameters: 827
-  Raw INT8 weight/bias blob: 904 bytes
-  Float-vs-custom-INT8 decoded mean-delay MAE: ~0.0925 ns
-  Runtime background blob: 2,112 bytes
-  Random compact control: trained and reported, never exported
+  FP32 guard: PASS
+  INT8 guard: PASS
+  Quantization: symmetric INT8 per output channel
+  Requantization: Q31 multiplier + right shift
+  Raw v2 model blob: 1,069 bytes
+  Core static deployment data: 4,461 bytes
+  End-to-end FP32/INT8 PF evaluation files: generated
+  Random compact control: trained/reported, never selected as deployment checkpoint
 
-Official-data converter coverage:
+Official-data conversion coverage:
   - official 4x3 XYZ AnchorPos -> XY: PASS
-  - Dyn_var_CIRxx / Bg_var_CIRxx names: PASS
-  - complex CIR -> abs(CIR) rather than float-cast: PASS
+  - Dyn_var_CIRxx / Bg_var_CIRxx variable names: PASS
+  - complex CIR -> abs(CIR): PASS
+  - geometry/source-ToF audit + provenance metadata: implemented/tested
 
-The smoke result validates integration/export only. Final accuracy claims require the official dataset and the strict MAE guard in configs/esp32s3_official.yaml.
+Study launcher:
+  - case/seed command generation: PASS
+  - repository-relative output root: PASS
+  - external absolute output root dry-run: PASS
+
+Claim boundary:
+  The smoke verifies mechanisms only. Final accuracy/model-selection claims require the official experimental dataset and strict official guards.

@@ -111,14 +111,14 @@ def run_particle_filter(
         # Exact same bistatic path-length math as before, but each of the four
         # anchor distances is computed once and then reused by all six links.
         anchor_dist = _anchor_distances(particles[:, :2], anchors)
-        expected_all = (
-            anchor_dist[:, link_pairs[:, 0]] + anchor_dist[:, link_pairs[:, 1]]
-        ) / c_m_per_ns
-        residual_all = measurements[t][None, :] - expected_all
 
+        # Stream one link at a time. This preserves the exact likelihood math
+        # while avoiding two [particles x links] temporary matrices
+        # (expected_all and residual_all), which matters for constrained targets.
         log_w = np.log(np.maximum(weights, np.finfo(dtype).tiny))
-        for link in range(link_pairs.shape[0]):
-            residual = residual_all[:, link]
+        for link, (anchor_i, anchor_j) in enumerate(link_pairs):
+            expected = (anchor_dist[:, anchor_i] + anchor_dist[:, anchor_j]) / c_m_per_ns
+            residual = measurements[t, link] - expected
             scale = scales[t, link] if adaptive else global_scale_ns
             good = _student_t_logpdf(
                 residual, scale, float(cfg.student_nu), constant=good_constant
@@ -205,14 +205,12 @@ def run_repository_particle_filter(
         dt = max(float(time_s[t + 1] - time_s[t]), 1e-4)
         updated = particles + dt * velocity_noise_mps * rng.normal(size=particles.shape)
         anchor_dist = _anchor_distances(updated, anchors)
-        expected_all = (
-            anchor_dist[:, link_pairs[:, 0]] + anchor_dist[:, link_pairs[:, 1]]
-        ) / c_m_per_ns
-        residual_all = measurements[t][None, :] - expected_all - error_location_ns
         log_w = np.zeros(num_particles, dtype=np.float64)
-        for link in range(link_pairs.shape[0]):
+        for link, (anchor_i, anchor_j) in enumerate(link_pairs):
+            expected = (anchor_dist[:, anchor_i] + anchor_dist[:, anchor_j]) / c_m_per_ns
+            residual = measurements[t, link] - expected - error_location_ns
             log_w += _student_t_logpdf(
-                residual_all[:, link], error_scale_ns, error_nu, constant=student_constant
+                residual, error_scale_ns, error_nu, constant=student_constant
             )
         log_w -= _logsumexp(log_w)
         weights = np.exp(log_w)

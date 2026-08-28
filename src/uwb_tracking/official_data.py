@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 import tempfile
 import urllib.request
@@ -19,6 +21,37 @@ OFFICIAL_GITHUB_ZIP = (
 OFFICIAL_DYNAMIC_GDRIVE_ID = "1jo-PErF5nnqWJ8UUdzZv_OpWcDMesgxB"
 LINKS = ("01", "02", "04", "12", "14", "24")
 PAIRS = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]], dtype=np.int64)
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_provenance(output: Path, source_dir: Path) -> Path:
+    sources = [source_dir / "AnchorPos.mat", source_dir / "Bg_CIR_VAR.mat", source_dir / "Dyn_CIR_VAR.mat"]
+    record = {
+        "official_repository": OFFICIAL_GITHUB_REPO,
+        "dynamic_google_drive_id": OFFICIAL_DYNAMIC_GDRIVE_ID,
+        "output": str(output),
+        "output_sha256": _sha256(output),
+        "sources": [
+            {"path": str(path), "bytes": path.stat().st_size, "sha256": _sha256(path)}
+            for path in sources if path.exists()
+        ],
+        "conversion": {
+            "anchor_xyz_to_xy": True,
+            "complex_cir_to_magnitude": True,
+            "variance_names": "Dyn_var_CIRxx/Bg_var_CIRxx",
+            "tracking_geometry": "2D bistatic ellipse, same as ParticleFilter4Nodes.m",
+        },
+    }
+    path = output.with_suffix(output.suffix + ".provenance.json")
+    path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    return path
 
 
 def _download_url(url: str, destination: Path) -> None:
@@ -270,6 +303,9 @@ def convert_official_matlab_data(
     # geometry-consistent target also prevents tiny interpolation inconsistencies
     # between per-link MU timelines from failing downstream validation.
     tof_total = geometry_tof(trajectory_xy, anchors, PAIRS)
+    source_geometry_abs_error = np.abs(tof_source_interp - tof_total)
+    source_geometry_mae_ns = float(np.mean(source_geometry_abs_error))
+    source_geometry_max_ns = float(np.max(source_geometry_abs_error))
 
     output.parent.mkdir(parents=True, exist_ok=True)
     savemat(
@@ -282,6 +318,8 @@ def convert_official_matlab_data(
             "trajectory_xy": trajectory_xy,
             "tof_total_ns": tof_total,
             "tof_source_interpolated_ns": tof_source_interp,
+            "tof_source_vs_geometry_mae_ns": source_geometry_mae_ns,
+            "tof_source_vs_geometry_max_abs_ns": source_geometry_max_ns,
             "tof_los_ns": np.asarray(los, dtype=np.float64),
             "cir_background": np.stack(cir_bg).astype(np.float32),
             "var_background": np.stack(var_bg).astype(np.float32),
@@ -307,13 +345,18 @@ def ensure_official_standard_dataset(
     """Auto-download official sources and create the standard MAT dataset."""
 
     output = Path(output)
+    source_dir = Path(source_dir)
     if output.exists() and not force_convert:
+        if (source_dir / "AnchorPos.mat").exists() and (source_dir / "Bg_CIR_VAR.mat").exists():
+            _write_provenance(output, source_dir)
         return output
     source_dir = download_official_repository(source_dir, force=force_download)
     dynamic = download_dynamic_mat(source_dir / "Dyn_CIR_VAR.mat", force=force_download)
-    return convert_official_matlab_data(
+    converted = convert_official_matlab_data(
         source_dir / "Bg_CIR_VAR.mat",
         dynamic,
         source_dir / "AnchorPos.mat",
         output,
     )
+    _write_provenance(converted, source_dir)
+    return converted

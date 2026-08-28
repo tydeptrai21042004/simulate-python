@@ -102,8 +102,9 @@ def select_structured_ticket(
 ) -> ESP32TicketSelection:
     """Select a dependency-aware structured LTH ticket.
 
-    Ranking is hierarchical: conv2 is scored only through retained conv1 inputs,
-    conv3 only through retained conv2 inputs, and hidden FC neurons use both their
+    Ranking is hierarchical and BN-aware: conv2 is scored only through retained
+    conv1 inputs, conv3 only through retained conv2 inputs, Conv importance is
+    weighted by the learned BatchNorm scale, and hidden FC neurons use both their
     incoming magnitude and their contribution to all three output heads. This is
     more faithful to the *physical* compact graph than ranking every layer in
     isolation against channels that will later be removed.
@@ -116,14 +117,20 @@ def select_structured_ticket(
     if target_arch.hidden > source_arch.hidden:
         raise ValueError("target hidden width must not exceed supernet hidden width")
 
+    # BN-weighted L1 saliency is still deterministic and deployment-friendly,
+    # but is more informative than raw magnitude alone because a channel whose
+    # BatchNorm gamma is near zero contributes little after normalization.
     w1 = trained_supernet.conv1.weight.detach().abs()
-    c1 = _top_channels_from_score(w1.flatten(1).sum(dim=1), c1_count)
+    gamma1 = trained_supernet.bn1.weight.detach().abs()
+    c1 = _top_channels_from_score(w1.flatten(1).sum(dim=1) * gamma1, c1_count)
 
     w2 = trained_supernet.conv2.weight.detach().abs()[:, c1, :]
-    c2 = _top_channels_from_score(w2.flatten(1).sum(dim=1), c2_count)
+    gamma2 = trained_supernet.bn2.weight.detach().abs()
+    c2 = _top_channels_from_score(w2.flatten(1).sum(dim=1) * gamma2, c2_count)
 
     w3 = trained_supernet.conv3.weight.detach().abs()[:, c2, :]
-    c3 = _top_channels_from_score(w3.flatten(1).sum(dim=1), c3_count)
+    gamma3 = trained_supernet.bn3.weight.detach().abs()
+    c3 = _top_channels_from_score(w3.flatten(1).sum(dim=1) * gamma3, c3_count)
 
     fc1 = trained_supernet.fc1.weight.detach().abs()[:, c3]
     fc2 = trained_supernet.fc2.weight.detach().abs()

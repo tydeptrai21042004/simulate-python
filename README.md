@@ -36,7 +36,7 @@ The proposed method is no longer a handcrafted peak-score fusion. `U-FusePF` con
 - validation-prior reliability fusion, where global validation accuracy is combined with sample-specific reliability without using test labels;
 - a fused ToF mean and heteroscedastic Student-t scale, augmented by cross-expert disagreement;
 - direct use of the predicted scale in the per-link Particle Filter likelihood;
-- a broad outlier component to prevent one unreliable link from collapsing the particle weights.
+- an explicit learned outlier-probability head supervised by corruption labels, propagated into the broad-component mixture of the adaptive Particle Filter.
 
 The core hypothesis is testable: **a model that estimates both ToF and link-specific uncertainty should reduce the tail of tracking error under NLoS, outliers and link dropout.**
 
@@ -76,7 +76,7 @@ Python 3.10+ is supported. A CUDA GPU is recommended for the full 3-case × 5-se
 pytest
 ```
 
-The final ESP32 edition currently passes **61 tests**.
+The current simulation/LTH/export edition passes **64 tests**.
 
 ### 2. Quick end-to-end run
 
@@ -96,8 +96,16 @@ With the bundled synthetic file, this validates the architecture and experiment 
 
 ### 4. Full proposed-method benchmark
 
+Synthetic/config-development benchmark:
+
 ```bash
 uwb-track full --config configs/full.yaml
+```
+
+Final official-data benchmark (3 cases × 5 seeds, automatic data setup):
+
+```bash
+uwb-track full --config configs/full_official.yaml
 ```
 
 ### 5. Ablation
@@ -164,8 +172,9 @@ src/uwb_tracking/
 │   ├── model.py            # ~1-2k parameter deployment student
 │   ├── training.py         # compact training/distillation
 │   ├── teacher.py          # offline ensemble-teacher targets
-│   ├── exporter.py         # BN fold + raw INT8/ONNX/ESP-DL export
-│   └── preprocess_export.py# background/geometry constants for firmware
+│   ├── exporter.py         # BN fold + per-channel fixed-point INT8/ONNX/ESP-DL export
+│   ├── evaluation.py       # FP32/INT8 ToF + end-to-end PF deployment metrics
+│   └── preprocess_export.py# background/geometry runtime constants
 └── tracking/
     └── particle_filter.py  # optimized uncertainty-aware Student-t PF
 ```
@@ -184,11 +193,16 @@ A valid final conclusion requires the official experimental data or new measurem
 ## Lightweight / Lottery-Ticket Deployment Path
 
 For CPU/edge deployment, see [`docs/LIGHTWEIGHT_DEPLOYMENT.md`](docs/LIGHTWEIGHT_DEPLOYMENT.md).
-The added path includes a 5.2k-parameter dense Conv1D uncertainty model, structured lottery-ticket channel selection with weight rewinding, streaming preprocessing, and a vectorized Student-t particle filter that reuses particle-to-anchor distances.
+The canonical lightweight path is now `scripts/train_esp32_pipeline.py` plus `src/uwb_tracking/esp32/`. It performs progressive structured-LTH architecture search with initialization rewinding, clean/robust/Particle-Filter quality guards, per-output-channel fixed-point INT8 export, and an end-to-end FP32-vs-INT8 tracking check. The older `models/lite.py` / `train_structured_ticket.py` path is retained only for historical research comparison.
 
-Quick commands:
+Single official case/seed:
 
 ```bash
-python scripts/benchmark_deployment.py --length 176 --threads 1
-python scripts/train_structured_ticket.py --config configs/deployment_lottery.yaml --case 1 --seed 11
+./RUN_ESP32_OFFICIAL.sh
+```
+
+Final multi-case/multi-seed lightweight study:
+
+```bash
+./RUN_ESP32_STUDY.sh
 ```

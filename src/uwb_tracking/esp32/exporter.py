@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
-import struct
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,10 +74,15 @@ class QuantizedLayer:
     name: str
     weight: np.ndarray
     bias: np.ndarray
-    weight_scale: float
+    # Per-output-channel symmetric INT8 weight scales improve accuracy at
+    # negligible model-size cost. Firmware does not need these floating scales
+    # because requantization is exported as integer multiplier + right shift.
+    weight_scale: np.ndarray
     input_scale: float
     output_scale: float
-    multiplier: float
+    multiplier: np.ndarray
+    requant_multiplier_q31: np.ndarray
+    requant_shift: np.ndarray
     stride: int = 1
     padding: int = 0
 
@@ -97,10 +100,46 @@ def _safe_scale(max_abs: float) -> float:
     return max(float(max_abs) / 127.0, 1e-8)
 
 
-def _quantize_weight(weight: np.ndarray) -> tuple[np.ndarray, float]:
-    scale = _safe_scale(float(np.max(np.abs(weight))))
-    q = np.clip(np.rint(weight / scale), -127, 127).astype(np.int8)
-    return q, scale
+def _quantize_weight(weight: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Symmetric INT8 quantization with one scale per output channel."""
+
+    weight = np.asarray(weight, dtype=np.float64)
+    if weight.ndim < 2:
+        raise ValueError("weight tensor must have an output-channel axis")
+    reduce_axes = tuple(range(1, weight.ndim))
+    max_abs = np.max(np.abs(weight), axis=reduce_axes)
+    scale = np.maximum(max_abs / 127.0, 1e-8).astype(np.float64)
+    reshape = (scale.size,) + (1,) * (weight.ndim - 1)
+    q = np.clip(np.rint(weight / scale.reshape(reshape)), -127, 127).astype(np.int8)
+    return q, scale.astype(np.float32)
+
+
+def _fixedpoint_multiplier(multiplier: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Approximate positive real multipliers as Q31 integer + right shift.
+
+    For each m > 0, frexp gives m = mantissa * 2**exp with mantissa in
+    [0.5, 1). We quantize mantissa to signed Q31 and use shift=31-exp, so
+    round(acc*m) can be reproduced using only int64 multiply, rounding and a
+    right shift.
+    """
+
+    multiplier = np.asarray(multiplier, dtype=np.float64).reshape(-1)
+    if np.any(~np.isfinite(multiplier)) or np.any(multiplier <= 0):
+        raise ValueError("requantization multipliers must be finite and > 0")
+    q = np.empty(multiplier.size, dtype=np.int64)
+    shift = np.empty(multiplier.size, dtype=np.int32)
+    for i, value in enumerate(multiplier):
+        mantissa, exponent = np.frexp(float(value))
+        q31 = int(round(mantissa * (1 << 31)))
+        if q31 == (1 << 31):
+            q31 //= 2
+            exponent += 1
+        right_shift = 31 - exponent
+        if not (1 <= right_shift <= 62):
+            raise ValueError(f"unsupported requantization shift {right_shift} for multiplier {value}")
+        q[i] = q31
+        shift[i] = right_shift
+    return q.astype(np.int32), shift.astype(np.uint8)
 
 
 def _quantize_layer(
@@ -113,17 +152,27 @@ def _quantize_layer(
     padding: int = 0,
 ) -> QuantizedLayer:
     q_weight, weight_scale = _quantize_weight(weight)
-    bias_scale = input_scale * weight_scale
-    q_bias = np.rint(bias / bias_scale).astype(np.int32)
-    multiplier = bias_scale / output_scale
+    bias_scale = float(input_scale) * weight_scale.astype(np.float64)
+    bias_f = np.asarray(bias, dtype=np.float64).reshape(-1)
+    if bias_f.size != weight_scale.size:
+        raise ValueError(f"{name}: bias/output-channel mismatch")
+    q_bias64 = np.rint(bias_f / bias_scale)
+    info = np.iinfo(np.int32)
+    if np.any(q_bias64 < info.min) or np.any(q_bias64 > info.max):
+        raise OverflowError(f"{name}: quantized bias exceeds int32 range")
+    q_bias = q_bias64.astype(np.int32)
+    multiplier = bias_scale / float(output_scale)
+    requant_q31, requant_shift = _fixedpoint_multiplier(multiplier)
     return QuantizedLayer(
         name=name,
         weight=q_weight,
         bias=q_bias,
         weight_scale=weight_scale,
-        input_scale=input_scale,
-        output_scale=output_scale,
-        multiplier=multiplier,
+        input_scale=float(input_scale),
+        output_scale=float(output_scale),
+        multiplier=multiplier.astype(np.float32),
+        requant_multiplier_q31=requant_q31,
+        requant_shift=requant_shift,
         stride=stride,
         padding=padding,
     )
@@ -223,6 +272,21 @@ def calibrate_and_quantize(
     )
 
 
+def _requantize_int64(acc: np.ndarray, layer: QuantizedLayer) -> np.ndarray:
+    """Per-output-channel fixed-point requantization used by the C reference path."""
+
+    acc = np.asarray(acc, dtype=np.int64)
+    qmul = layer.requant_multiplier_q31.astype(np.int64)
+    shift = layer.requant_shift.astype(np.int64)
+    if acc.shape[-1] != qmul.size:
+        raise ValueError(f"{layer.name}: accumulator/output-channel mismatch")
+    product = acc * qmul
+    magnitude = np.abs(product)
+    rounding = np.left_shift(np.ones_like(shift, dtype=np.int64), shift - 1)
+    rounded = np.right_shift(magnitude + rounding, shift)
+    return np.where(product < 0, -rounded, rounded)
+
+
 def _conv1d_int8(x: np.ndarray, layer: QuantizedLayer, relu: bool) -> np.ndarray:
     # x: [B, Cin, L], weight: [Cout, Cin, K]
     bsz, cin, length = x.shape
@@ -237,7 +301,7 @@ def _conv1d_int8(x: np.ndarray, layer: QuantizedLayer, relu: bool) -> np.ndarray
         patch = padded[:, :, t * layer.stride : t * layer.stride + kernel]
         acc = np.tensordot(patch, w, axes=([1, 2], [1, 2])).astype(np.int64)
         acc += layer.bias[None, :].astype(np.int64)
-        q = np.rint(acc * layer.multiplier)
+        q = _requantize_int64(acc, layer)
         if relu:
             q = np.maximum(q, 0)
         out[:, :, t] = np.clip(q, -128, 127).astype(np.int8)
@@ -247,7 +311,7 @@ def _conv1d_int8(x: np.ndarray, layer: QuantizedLayer, relu: bool) -> np.ndarray
 def _linear_int8(x: np.ndarray, layer: QuantizedLayer, relu: bool) -> np.ndarray:
     acc = x.astype(np.int32) @ layer.weight.astype(np.int32).T
     acc = acc.astype(np.int64) + layer.bias[None, :].astype(np.int64)
-    q = np.rint(acc * layer.multiplier)
+    q = _requantize_int64(acc, layer)
     if relu:
         q = np.maximum(q, 0)
     return np.clip(q, -128, 127).astype(np.int8)
@@ -313,13 +377,13 @@ def export_c_header(bundle: RawINT8Bundle, path: str | Path, namespace: str = "u
         upper = layer.name.upper()
         pieces.extend(
             [
-                f"// {layer.name}: weight shape {list(layer.weight.shape)}\n",
-                f"static constexpr float {upper}_WEIGHT_SCALE = {layer.weight_scale:.12g}f;\n",
+                f"// {layer.name}: weight shape {list(layer.weight.shape)}; per-output-channel quantization\n",
                 f"static constexpr float {upper}_INPUT_SCALE = {layer.input_scale:.12g}f;\n",
                 f"static constexpr float {upper}_OUTPUT_SCALE = {layer.output_scale:.12g}f;\n",
-                f"static constexpr float {upper}_MULTIPLIER = {layer.multiplier:.12g}f;\n",
                 f"static constexpr int {upper}_STRIDE = {layer.stride};\n",
                 f"static constexpr int {upper}_PADDING = {layer.padding};\n",
+                _c_array(f"{layer.name}_requant_multiplier_q31", layer.requant_multiplier_q31, "int32_t", values_per_line=8),
+                _c_array(f"{layer.name}_requant_shift", layer.requant_shift, "uint8_t", values_per_line=16),
                 _c_array(f"{layer.name}_weight", layer.weight, "int8_t"),
                 _c_array(f"{layer.name}_bias", layer.bias, "int32_t", values_per_line=8),
                 "\n",
@@ -347,7 +411,7 @@ def export_raw_binary(bundle: RawINT8Bundle, path: str | Path) -> dict:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, object] = {
-        "format": "uwb-esp32-int8-v1",
+        "format": "uwb-esp32-int8-v2-per-channel-fixedpoint",
         "input_scale": bundle.input_scale,
         "delay_max_ns": bundle.delay_max_ns,
         "min_scale_fraction": bundle.min_scale_fraction,
@@ -359,10 +423,13 @@ def export_raw_binary(bundle: RawINT8Bundle, path: str | Path) -> dict:
             layer_info: dict[str, object] = {
                 "name": layer.name,
                 "weight_shape": list(layer.weight.shape),
-                "weight_scale": layer.weight_scale,
+                "quantization": "symmetric_int8_per_output_channel",
+                "weight_scale": layer.weight_scale.astype(float).tolist(),
                 "input_scale": layer.input_scale,
                 "output_scale": layer.output_scale,
-                "multiplier": layer.multiplier,
+                "multiplier": layer.multiplier.astype(float).tolist(),
+                "requant_multiplier_q31": layer.requant_multiplier_q31.astype(int).tolist(),
+                "requant_shift": layer.requant_shift.astype(int).tolist(),
                 "stride": layer.stride,
                 "padding": layer.padding,
                 "weight_offset": offset,
@@ -376,6 +443,16 @@ def export_raw_binary(bundle: RawINT8Bundle, path: str | Path) -> dict:
             raw_b = layer.bias.astype("<i4", copy=False).tobytes(order="C")
             f.write(raw_b)
             offset += len(raw_b)
+            layer_info["requant_multiplier_q31_offset"] = offset
+            raw_qmul = layer.requant_multiplier_q31.astype("<i4", copy=False).tobytes(order="C")
+            layer_info["requant_multiplier_q31_bytes"] = len(raw_qmul)
+            f.write(raw_qmul)
+            offset += len(raw_qmul)
+            layer_info["requant_shift_offset"] = offset
+            raw_shift = layer.requant_shift.astype(np.uint8, copy=False).tobytes(order="C")
+            layer_info["requant_shift_bytes"] = len(raw_shift)
+            f.write(raw_shift)
+            offset += len(raw_shift)
             cast_layers = manifest["layers"]
             assert isinstance(cast_layers, list)
             cast_layers.append(layer_info)
@@ -513,10 +590,17 @@ def export_checkpoint(
     float_outlier = _sigmoid(float_raw[:, 2])
     int8_outlier = _sigmoid(int8_raw[:, 2])
 
+    mean_lut, scale_lut, outlier_lut = _decode_luts(bundle)
+    parameter_count = int(sum(p.numel() for p in model.parameters()))
     report = {
         "checkpoint": str(checkpoint),
-        "parameters": int(sum(p.numel() for p in model.parameters())),
+        "parameters": parameter_count,
+        "quantization": "symmetric_int8_per_output_channel",
+        "requantization": "q31_multiplier_plus_right_shift",
         "weight_blob_bytes": int(bin_path.stat().st_size),
+        "fp32_parameter_bytes": int(parameter_count * 4),
+        "weight_storage_reduction_vs_fp32": float(1.0 - bin_path.stat().st_size / max(parameter_count * 4, 1)),
+        "decode_lut_bytes": int(mean_lut.nbytes + scale_lut.nbytes + outlier_lut.nbytes),
         "weight_blob_sha256": str(manifest["sha256"]),
         "header_bytes": int(header_path.stat().st_size),
         "float_vs_raw_int8_raw_mae": float(np.mean(np.abs(float_raw - int8_raw))),

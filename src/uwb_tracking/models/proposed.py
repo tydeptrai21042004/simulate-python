@@ -68,7 +68,7 @@ class UncertaintyFusionNet(nn.Module):
             nn.Dropout(0.10),
             nn.Linear(96, 32),
             nn.ReLU(inplace=True),
-            nn.Linear(32, 2),
+            nn.Linear(32, 3),
         )
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -98,7 +98,7 @@ class UncertaintyFusionNet(nn.Module):
         scale = 0.5 * branch_scale + 0.5 * (F.softplus(out[:, 1]) + self.min_scale_fraction)
         if self.ablation == "no_uncertainty":
             scale = torch.full_like(scale, 0.03)
-        return {
+        result = {
             "mean_fraction": mean,
             "scale_fraction": scale,
             "cir_mean_fraction": cir_mean,
@@ -108,3 +108,8 @@ class UncertaintyFusionNet(nn.Module):
             "gate_cir": weights[:, 0],
             "gate_var": weights[:, 1],
         }
+        if self.ablation != "no_uncertainty":
+            outlier_logit = out[:, 2]
+            result["outlier_logit"] = outlier_logit
+            result["outlier_probability"] = torch.sigmoid(outlier_logit)
+        return result

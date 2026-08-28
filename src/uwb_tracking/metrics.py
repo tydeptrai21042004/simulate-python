@@ -31,6 +31,7 @@ def uncertainty_metrics(
     corruption_mask: np.ndarray,
     tolerance_ns: float = 1.0,
     bins: int = 10,
+    outlier_probability: np.ndarray | None = None,
 ) -> dict[str, float]:
     err = np.abs(np.asarray(pred_delay_ns) - np.asarray(true_delay_ns))
     scale = np.maximum(np.asarray(scale_ns), 1e-4)
@@ -45,11 +46,25 @@ def uncertainty_metrics(
     brier = float(np.mean((confidence - correctness) ** 2))
     result = {"confidence_ece": float(ece), "confidence_brier": brier}
     mask = np.asarray(corruption_mask).astype(int)
-    if np.unique(mask).size == 2:
-        unreliability = scale
-        result["corruption_auroc"] = float(roc_auc_score(mask, unreliability))
-        result["corruption_auprc"] = float(average_precision_score(mask, unreliability))
+    mask_flat = mask.reshape(-1)
+    if np.unique(mask_flat).size == 2:
+        unreliability = np.asarray(scale, dtype=float).reshape(-1)
+        if unreliability.size != mask_flat.size:
+            raise ValueError("scale_ns must match corruption_mask size")
+        result["corruption_auroc"] = float(roc_auc_score(mask_flat, unreliability))
+        result["corruption_auprc"] = float(average_precision_score(mask_flat, unreliability))
     else:
         result["corruption_auroc"] = float("nan")
         result["corruption_auprc"] = float("nan")
+    if outlier_probability is not None:
+        probability = np.clip(np.asarray(outlier_probability, dtype=float).reshape(-1), 0.0, 1.0)
+        if probability.size != mask_flat.size:
+            raise ValueError("outlier_probability must match corruption_mask size")
+        result["outlier_probability_brier"] = float(np.mean((probability - mask_flat) ** 2))
+        if np.unique(mask_flat).size == 2:
+            result["outlier_probability_auroc"] = float(roc_auc_score(mask_flat, probability))
+            result["outlier_probability_auprc"] = float(average_precision_score(mask_flat, probability))
+        else:
+            result["outlier_probability_auroc"] = float("nan")
+            result["outlier_probability_auprc"] = float("nan")
     return result

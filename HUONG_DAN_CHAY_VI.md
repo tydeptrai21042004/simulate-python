@@ -37,7 +37,7 @@ pip install -e '.[dev]'
 pytest
 ```
 
-Kết quả chuẩn của bản giao hiện tại: **61 tests passed**.
+Kết quả chuẩn của bản giao hiện tại: **64 tests passed**.
 
 ## 4. Chạy nhanh end-to-end
 
@@ -131,9 +131,12 @@ Dữ liệu chính thức, tự tải nếu chưa có:
 
 Pipeline ESP32 hiện **bắt buộc export model từ structured Lottery Ticket Hypothesis**. Supernet
 được train trước, các channel/neuron quan trọng được chọn từ supernet đã train nhưng trọng số sống
-sót được rewind về initialization. Nhiều kiến trúc compact được thử từ nhỏ đến lớn. Model đầu tiên
-đạt giới hạn suy giảm ToF MAE trong `lth_search` sẽ được export. Random compact model chỉ là control
-để báo cáo khoa học và không được phép thay thế LTH checkpoint.
+sót được rewind về initialization. Nhiều kiến trúc compact được thử từ nhỏ đến lớn. Mỗi candidate được kiểm tra trên clean/robust ToF, uncertainty và một đoạn validation liên tục chạy qua Particle Filter. Candidate sau đó còn phải qua **INT8 guard**: per-channel INT8 + Q31/right-shift được đánh giá lại cả ToF lẫn tracking. Random compact model chỉ là control khoa học và không được phép thay thế LTH checkpoint.
 
-Nếu không ticket nào đạt accuracy guard trong cấu hình official, pipeline dừng trước export thay vì
-xuất một model nhẹ nhưng chất lượng thấp.
+Nếu không ticket nào đạt guard trong cấu hình official, pipeline dừng trước export thay vì xuất một model nhẹ nhưng chất lượng thấp. Để làm kết quả cuối trên nhiều case/seed, chạy:
+
+```bash
+./RUN_ESP32_STUDY.sh
+```
+
+File `study_runs.csv` và `study_summary.json` tổng hợp kích thước model, trạng thái guard, sai số FP32/INT8, tracking và so sánh LTH với random control.

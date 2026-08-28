@@ -36,14 +36,44 @@ class UWBData:
         return np.maximum(self.tof_total_ns - self.tof_los_ns[None, :], 0.0)
 
     def validate(self, c_m_per_ns: float = 0.299792458) -> None:
+        if self.cir_dynamic.ndim != 3:
+            raise ValueError(f"cir_dynamic must have shape [time, links, bins], got {self.cir_dynamic.shape}")
         t, l, b = self.cir_dynamic.shape
-        assert self.var_dynamic.shape == (t, l, b)
-        assert self.cir_background.shape == (l, b)
-        assert self.var_background.shape == (l, b)
-        assert self.tof_total_ns.shape == (t, l)
-        assert self.trajectory_xy.shape == (t, 2)
-        assert self.anchors.ndim == 2 and self.anchors.shape[1] == 2
-        assert self.link_pairs.min() >= 0
+        expected_shapes = {
+            "var_dynamic": (t, l, b),
+            "cir_background": (l, b),
+            "var_background": (l, b),
+            "tof_total_ns": (t, l),
+            "trajectory_xy": (t, 2),
+            "link_pairs": (l, 2),
+            "tof_los_ns": (l,),
+            "time_s": (t,),
+            "delay_grid_ns": (b,),
+        }
+        for name, shape in expected_shapes.items():
+            value = np.asarray(getattr(self, name))
+            if value.shape != shape:
+                raise ValueError(f"{name} must have shape {shape}, got {value.shape}")
+        if self.anchors.ndim != 2 or self.anchors.shape[1] != 2 or self.anchors.shape[0] < 2:
+            raise ValueError(f"anchors must have shape [N>=2, 2], got {self.anchors.shape}")
+        if l < 1 or b < 1 or t < 1:
+            raise ValueError("dataset must contain at least one timestamp, link and delay bin")
+        if np.min(self.link_pairs) < 0 or np.max(self.link_pairs) >= self.anchors.shape[0]:
+            raise ValueError("link_pairs contains an anchor index outside the anchors array")
+        if np.any(self.link_pairs[:, 0] == self.link_pairs[:, 1]):
+            raise ValueError("each link must connect two distinct anchors")
+        if not np.all(np.isfinite(self.time_s)) or np.any(np.diff(self.time_s) <= 0):
+            raise ValueError("time_s must be finite and strictly increasing")
+        if not np.all(np.isfinite(self.delay_grid_ns)) or (b > 1 and np.any(np.diff(self.delay_grid_ns) <= 0)):
+            raise ValueError("delay_grid_ns must be finite and strictly increasing")
+        for name in (
+            "anchors", "trajectory_xy", "tof_total_ns", "tof_los_ns",
+            "cir_background", "var_background", "cir_dynamic", "var_dynamic",
+        ):
+            if not np.all(np.isfinite(np.asarray(getattr(self, name)))):
+                raise ValueError(f"{name} contains non-finite values")
+        if float(c_m_per_ns) <= 0:
+            raise ValueError("c_m_per_ns must be > 0")
         expected = geometry_tof(self.trajectory_xy, self.anchors, self.link_pairs, c_m_per_ns)
         max_error = float(np.max(np.abs(expected - self.tof_total_ns)))
         if max_error > 1e-5:

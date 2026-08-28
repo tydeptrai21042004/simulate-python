@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .config import load_config
 from .experiments import run_ablation_suite, run_benchmark, run_robustness_sweep
+from .official_data import ensure_official_standard_dataset
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +37,19 @@ def main() -> None:
         cfg.data_path = str(root / cfg.data_path)
     if not Path(cfg.output_dir).is_absolute():
         cfg.output_dir = str(root / cfg.output_dir)
+
+    data_path = Path(cfg.data_path)
+    official = cfg.official_data or {}
+    if not data_path.exists() and bool(official.get("auto_download", False)):
+        source_dir = Path(str(official.get("source_dir", "data/original_uwb/UWB-Radar-Pedestrian-Tracking")))
+        if not source_dir.is_absolute():
+            source_dir = root / source_dir
+        cfg.data_path = str(ensure_official_standard_dataset(
+            data_path,
+            source_dir,
+            force_download=bool(official.get("force_download", False)),
+            force_convert=bool(official.get("force_convert", False)),
+        ))
 
     if args.command in {"quick-run", "full", "reproduce-paper"}:
         results, summary = run_benchmark(

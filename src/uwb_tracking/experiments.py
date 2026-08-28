@@ -142,6 +142,7 @@ def evaluate_scenario(
             "trained": models["proposed"],
             "pred_delay_flat": fused_delay_flat,
             "pred_scale_flat": fused_scale_flat,
+            "predicted_outlier_probability_flat": extras.get("outlier_probability"),
             "inference_ms": deployed_inference,
             "parameters": deployed_parameters,
             "training_seconds": deployed_training,
@@ -162,6 +163,10 @@ def evaluate_scenario(
         pred_delay = _reshape_samples(pred_delay_flat, n, l)
         pred_scale = _reshape_samples(pred_scale_flat, n, l)
         pred_total = pred_delay + data.tof_los_ns[None, :]
+        outlier_flat = spec.get("predicted_outlier_probability_flat")
+        predicted_outlier_probability = (
+            _reshape_samples(np.asarray(outlier_flat), n, l) if outlier_flat is not None else None
+        )
         pf_kind = str(spec.get("pf_kind", "stabilized"))
         if pf_kind == "repository":
             trajectory, pf_diag = run_repository_particle_filter(
@@ -187,6 +192,7 @@ def evaluate_scenario(
                 adaptive=adaptive,
                 global_scale_ns=trained.global_scale_ns,
                 c_m_per_ns=cfg.c_m_per_ns,
+                predicted_outlier_probability=(predicted_outlier_probability if adaptive else None),
             )
         tm = tof_metrics(pred_delay, true_delay)
         trm = tracking_metrics(trajectory, obs.true_xy)
@@ -195,6 +201,7 @@ def evaluate_scenario(
             true_delay,
             pred_scale,
             obs.corruption_mask,
+            outlier_probability=predicted_outlier_probability,
         )
         row: dict[str, float | int | str] = {
             "case": case_id,

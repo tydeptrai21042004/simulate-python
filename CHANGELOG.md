@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-28 — End-to-end guarded LTH/INT8 tracking export
+
+- Added `src/uwb_tracking/esp32/evaluation.py` to evaluate folded FP32 and integer-reference INT8 students through the full uncertainty-aware Particle Filter.
+- Candidate selection now checks clean/robust ToF, NLL, outlier BCE and held-out tracking before and after quantization; strict official runs stop if either FP32 or INT8 quality guards fail.
+- Upgraded raw quantization to per-output-channel symmetric INT8 weights with Q31 multiplier + right-shift requantization; version-2 binary blobs include weights, biases and fixed-point requantization metadata.
+- Added an explicit learned outlier/confidence head to U-FusePF and propagated it to the adaptive PF; the `no_uncertainty` ablation disables both scale and outlier confidence.
+- Made research checkpoint selection MAE-first with uncertainty NLL as a near-tie breaker.
+- Reduced PF transient memory by streaming link residual/likelihood accumulation instead of materializing `[particles, links]` expected/residual matrices.
+- Added official-data SHA-256 provenance and source-vs-geometry ToF auditing.
+- Added `scripts/run_esp32_study.py`, `RUN_ESP32_STUDY.sh` and `.bat` for full case/seed LTH -> INT8 -> PF studies, including support for external absolute output directories.
+- Added `configs/full_official.yaml` for the three-case/five-seed research benchmark with automatic official-data setup.
+- Expanded verification to **64 passing tests**. The regenerated synthetic smoke selects an 827-parameter structured LTH ticket, emits a 1,069-byte v2 raw model blob and reports 4,461 bytes of core static deployment data; these are mechanism-only figures.
+
 ## 2026-08-27 — Official auto-data + accuracy-guarded structured LTH export
 
 - Added `scripts/fetch_original_data.py` and `uwb_tracking.official_data` to automatically download the official GitHub repository and the author-linked `Dyn_CIR_VAR.mat`, then build `data/uwb_original_standard.mat`.

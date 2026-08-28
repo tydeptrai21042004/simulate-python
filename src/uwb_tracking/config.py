@@ -59,6 +59,9 @@ class ExperimentConfig:
     dt_s: float = 0.20
     device: str = "auto"
     correlated_false_peak_probability: float = 0.5
+    # Optional public-source automation. When enabled, CLI commands can fetch
+    # and convert the official MATLAB repository before starting experiments.
+    official_data: dict[str, Any] = field(default_factory=dict)
     model: ModelConfig = field(default_factory=ModelConfig)
     particle_filter: ParticleFilterConfig = field(default_factory=ParticleFilterConfig)
 
